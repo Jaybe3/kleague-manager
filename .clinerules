@@ -1,0 +1,55 @@
+# .clinerules - KLeague Manager Development Rules
+
+## CRITICAL: Verified Development Framework
+
+This project follows the Verified Development Framework. Every action must be transparent and independently verifiable by the user.
+
+### MANDATORY WORKFLOW (NEVER SKIP):
+1. READ PRD.md, TASKS.md, DEVELOPMENT.md before ANY coding
+2. CREATE detailed specification for current task
+3. WAIT for explicit user approval on specification
+4. IMPLEMENT incrementally (one small piece at a time)
+5. PROVIDE exact verification commands the user can run
+6. SHOW expected vs actual output
+7. WAIT for user to verify independently
+8. ONLY proceed after explicit user approval
+
+### ABSOLUTE RULES:
+- NEVER write code without approved specification
+- NEVER claim something works without verification commands
+- NEVER use mock/fake/simulated data
+- NEVER skip user approval step
+- ALWAYS provide commands user can run themselves
+- ALWAYS show database state via Prisma Studio or queries
+- DEFAULT to asking clarifying questions rather than assuming
+
+---
+
+## Keeper Cost Calculation (CRITICAL - CORRECTED 2026-01-16)
+
+**The Rules:**
+1. Year 2 (1st keeper year): Keep at original cost (draft round or R15 for FA)
+2. Year 3+ (2nd+ keeper year): Keep at (previous year - 4)
+3. Ineligibility: If cost < 1, player is INELIGIBLE
+
+**Examples:**
+- Round 6: Y2=R6, Y3=R2, Y4=INELIGIBLE
+- Round 10: Y2=R10, Y3=R6, Y4=R2, Y5=INELIGIBLE
+- Free Agent: Y2=R15, Y3=R11, Y4=R7, Y5=R3, Y6=INELIGIBLE
+
+**Original Draft Rule:**
+- Search ALL teams for original DRAFT acquisition
+- Dropped/re-acquired players keep original draft cost
+- FA R15 only for players NEVER drafted
+
+---
+
+## Database: PlayerAcquisition.droppedDate
+
+- `null` = player still on roster
+- `DateTime` = player was dropped
+- Roster queries filter `droppedDate: null`
+
+---
+
+**Last Updated:** January 16, 2026

@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============= USERS & AUTH =============
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String   @map("password_hash")
+  displayName    String   @map("display_name")
+  isCommissioner Boolean  @default(false) @map("is_commissioner")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  teams     Team[]
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+// ============= TEAMS =============
+
+model Team {
+  id            String   @id @default(cuid())
+  permanentId   Int      @unique @map("permanent_id")
+  teamName      String   @map("team_name")
+  seasonYear    Int      @map("season_year")
+  draftPosition Int      @map("draft_position")
+  managerId     String?  @map("manager_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  manager      User?               @relation(fields: [managerId], references: [id])
+  acquisitions PlayerAcquisition[]
+  keepers      KeeperSelection[]
+
+  @@unique([permanentId, seasonYear])
+  @@map("teams")
+}
+
+// ============= PLAYERS =============
+
+model Player {
+  id             String   @id @default(cuid())
+  firstName      String   @map("first_name")
+  lastName       String   @map("last_name")
+  position       String
+  playerMatchKey String   @unique @map("player_match_key")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  acquisitions PlayerAcquisition[]
+  keepers      KeeperSelection[]
+
+  @@map("players")
+}
+
+// ============= SEASONS =============
+
+model Season {
+  id             String   @id @default(cuid())
+  year           Int      @unique
+  draftDate      DateTime @map("draft_date")
+  keeperDeadline DateTime @map("keeper_deadline")
+  totalRounds    Int      @default(28) @map("total_rounds")
+  maxKeepers     Int      @default(3) @map("max_keepers")
+  isActive       Boolean  @default(false) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("seasons")
+}
+
+// ============= PLAYER ACQUISITIONS =============
+
+model PlayerAcquisition {
+  id               String    @id @default(cuid())
+  playerId         String    @map("player_id")
+  teamId           String    @map("team_id")
+  seasonYear       Int       @map("season_year")
+  acquisitionType  String    @map("acquisition_type")
+  draftRound       Int?      @map("draft_round")
+  draftPick        Int?      @map("draft_pick")
+  acquisitionDate  DateTime  @map("acquisition_date")
+  tradedFromTeamId String?   @map("traded_from_team_id")
+  droppedDate      DateTime? @map("dropped_date")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  player  Player            @relation(fields: [playerId], references: [id])
+  team    Team              @relation(fields: [teamId], references: [id])
+  keepers KeeperSelection[]
+
+  @@map("player_acquisitions")
+}
+
+// ============= KEEPER SELECTIONS =============
+
+model KeeperSelection {
+  id                    String    @id @default(cuid())
+  teamId                String    @map("team_id")
+  playerId              String    @map("player_id")
+  seasonYear            Int       @map("season_year")
+  keeperRound           Int       @map("keeper_round")
+  yearsKept             Int       @default(1) @map("years_kept")
+  originalAcquisitionId String    @map("original_acquisition_id")
+  isFinalized           Boolean   @default(false) @map("is_finalized")
+  finalizedAt           DateTime? @map("finalized_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  team                Team              @relation(fields: [teamId], references: [id])
+  player              Player            @relation(fields: [playerId], references: [id])
+  originalAcquisition PlayerAcquisition @relation(fields: [originalAcquisitionId], references: [id])
+
+  @@unique([teamId, seasonYear, keeperRound])
+  @@unique([teamId, playerId, seasonYear])
+  @@map("keeper_selections")
+}
+
+// ============= AUDIT LOG =============
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  details    String
+  timestamp  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
