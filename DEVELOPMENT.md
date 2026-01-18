@@ -55,14 +55,38 @@ kleague-manager/
 
 ### Core Tables
 - **User**: Authentication and user management
-- **Team**: Team identity (permanent_id 1-10)
+- **TeamSlot**: Permanent league positions (1-10), never changes
+- **TeamAlias**: Maps team names to slots with year ranges
+- **Team**: Team instance per season (references slot)
 - **Player**: Master player list
-- **Season**: Yearly configuration (deadline, draft date)
+- **Season**: Yearly configuration (deadline, draft date, totalRounds)
 - **PlayerAcquisition**: Draft picks, FAs, trades
 - **KeeperSelection**: Yearly keeper decisions
 - **AuditLog**: Change tracking
 
+### Team Identity System (Added 2026-01-18)
+
+**Problem Solved:** CBS Sports retroactively renames historical data when teams rebrand. Keeper logic must follow permanent "slots" (seats at the table), not volatile team names.
+
+```prisma
+model TeamSlot {
+  id        Int      @id  // 1-10, permanent league positions
+  // ...relationships to TeamAlias, Team
+}
+
+model TeamAlias {
+  slotId    Int      // FK → TeamSlot
+  teamName  String   // e.g., "Discount Belichick"
+  validFrom Int      // Year this name started
+  validTo   Int?     // Year this name ended (null = current)
+}
+```
+
+**Lookup:** `getSlotIdFromTeamName(name, year)` handles CBS retroactive renames.
+
 ### Key Relationships
+- TeamSlot → TeamAlias (one-to-many, name history)
+- TeamSlot → Team (one-to-many, per season)
 - User → Team (manager)
 - Team → PlayerAcquisition → KeeperSelection
 - Player → PlayerAcquisition
@@ -93,6 +117,14 @@ model PlayerAcquisition {
 - If player dropped and NOT picked up rest of season → re-enters draft pool
 - Original draft would no longer apply
 - Requires tracking season coverage, not just seasonYear field
+
+### Season Configuration (Added 2026-01-18)
+
+**Total Rounds by Year:**
+- 2023, 2024: `totalRounds = 27`
+- 2025+: `totalRounds = 28`
+
+Set automatically during import based on season year.
 
 ---
 

@@ -25,6 +25,31 @@ This project follows the Verified Development Framework. Every action must be tr
 
 ---
 
+## Team Identity System (CRITICAL - Added 2026-01-18)
+
+**Problem:** CBS Sports retroactively renames historical data when teams rebrand.
+
+**Solution:** Slots (permanent league positions 1-10)
+- `TeamSlot` table: 10 permanent records, never changes
+- `TeamAlias` table: Maps team names → slots with year ranges
+- Keeper logic follows SLOT, not team name
+
+**Lookup:** `getSlotIdFromTeamName(name, year)` handles all variations.
+
+**Example:**
+- "Discount Belichick" (2023-2024) = Slot 5
+- "Seal Team Nix" (2025, CBS applied retroactively) = Slot 5
+
+---
+
+## Season Configuration
+
+**Total Rounds:**
+- 2023, 2024: `totalRounds = 27`
+- 2025+: `totalRounds = 28`
+
+---
+
 ## Keeper Cost Calculation (CRITICAL - CORRECTED 2026-01-16)
 
 **The Rules:**
@@ -52,4 +77,4 @@ This project follows the Verified Development Framework. Every action must be tr
 
 ---
 
-**Last Updated:** January 16, 2026
+**Last Updated:** January 18, 2026

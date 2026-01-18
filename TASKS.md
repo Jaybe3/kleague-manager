@@ -346,6 +346,179 @@ As a team manager, I want to see my current roster with each player's keeper cos
 
 ---
 
+### TASK-104: Team Identity System (Slots)
+**Status:** NOT STARTED
+**Priority:** CRITICAL - Blocks all imports
+**Depends On:** TASK-001
+
+**Objective:** Replace current broken team identity (draft position as permanentId) with proper slot-based system that survives team renames and CBS retroactive name changes.
+
+**Problem:**
+- Current `permanentId` is actually draft position, which changes yearly
+- CBS retroactively updates historical data with current team names
+- Example: "Discount Belichick" (2023-2024) now shows as "Seal Team Nix" in historical FA data
+- Keeper logic must follow the SLOT (seat at table), not the team name
+
+**Database Changes:**
+
+```prisma
+model TeamSlot {
+  id        Int      @id                    // 1-10, permanent league positions
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  aliases   TeamAlias[]
+  teams     Team[]
+  
+  @@map("team_slots")
+}
+
+model TeamAlias {
+  id        String   @id @default(cuid())
+  slotId    Int      @map("slot_id")
+  teamName  String   @map("team_name")
+  validFrom Int      @map("valid_from")     // Year this name started (e.g., 2023)
+  validTo   Int?     @map("valid_to")       // Year this name ended (null = current)
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  slot      TeamSlot @relation(fields: [slotId], references: [id])
+  
+  @@unique([slotId, teamName])
+  @@map("team_aliases")
+}
+```
+
+**Team.permanentId:** Change to reference TeamSlot.id (true permanent ID)
+
+**Seed Data (from commissioner-provided mapping):**
+
+| Slot | 2023 | 2024 | 2025 |
+|------|------|------|------|
+| 1 | Gatordontplay | Gatordontplay | Gatordontplayanymorebchesucked |
+| 2 | Box of Rocks | Box of Rocks | run ACHANE on her |
+| 3 | Woody and the Jets! | Woody and the Jets! | Woody and the Jets! |
+| 4 | Go Go Garrett | Go Go Garrett | The Better Business Burrow |
+| 5 | Discount Belichick | Discount Belichick | Seal Team Nix |
+| 6 | Team 4 | Team 4 | Team 4 |
+| 7 | The Bushwhackers | The Bushwhackers | The Bushwhackers |
+| 8 | Sweet Chin Music | Sweet Chin Music | Sweet Chin Music |
+| 9 | Fields of Dreams | Fields of Dreams | Fields of Dreams |
+| 10 | Ridley Me This | Let Bijans be Bijans | Nabers Think I'm Selling Dope |
+
+**Helper Function:**
+```typescript
+// Look up slot from team name + year
+function getSlotIdFromTeamName(teamName: string, seasonYear: number): number | null
+```
+
+**Files to Modify:**
+- `prisma/schema.prisma` - Add TeamSlot, TeamAlias models
+- `lib/importers/team-mapper.ts` - Replace hardcoded mapping with DB lookup
+- Migration script to seed slots and aliases
+
+**Acceptance Criteria:**
+- [ ] TeamSlot table has 10 permanent records
+- [ ] TeamAlias table has all known name mappings
+- [ ] `getSlotIdFromTeamName("Seal Team Nix", 2023)` returns 5 (CBS retroactive rename)
+- [ ] `getSlotIdFromTeamName("Discount Belichick", 2023)` returns 5
+- [ ] Team.permanentId correctly references TeamSlot.id
+
+---
+
+### TASK-105: Flexible Data Import Parser
+**Status:** NOT STARTED
+**Priority:** CRITICAL - Current import is broken
+**Depends On:** TASK-104
+
+**Objective:** Replace hardcoded Excel sheet name validation with flexible import that accepts copy/paste text or any Excel file.
+
+**Current Problems:**
+- Hardcoded sheet names: `2024_Draft_team`, `2024_Transactions`
+- Cannot import 2023 data or any other year
+- User cannot export from CBS as Excel/CSV, only copy/paste
+
+**New Import Behavior:**
+
+1. **Input Options:**
+   - Copy/paste tab-separated text (primary method)
+   - Excel file → read FIRST sheet, ignore sheet name
+
+2. **User Specifies:**
+   - Import type: Draft | FA Transactions
+   - Season year (required)
+
+3. **Season Configuration:**
+   - 2023, 2024: `totalRounds = 27`
+   - 2025+: `totalRounds = 28`
+
+4. **Draft Format Parsing:**
+   ```
+   Round 1
+   Pick	Team	Player	Elig	Elapsed Time	Total Fpts	Active Fpts
+   1	Go Go Garrett	Patrick Mahomes QB • KC 			826.0	652.0
+   ...
+   Round 2
+   ...
+   ```
+   - Detect "Round N" headers
+   - Parse player: `Name Position • NFLTeam`
+   - Map team name → slot using TASK-104 system
+
+5. **FA Transaction Format Parsing:**
+   ```
+   Date	Team	Players	Effective
+   12/30/23 1:42 AM ET	Sweet Chin Music	Jonathan Owens DB • CHI - Signed for $0	17
+   ```
+   - Parse date, team, action
+   - Extract player name, position from action text
+   - Filter for "Signed" transactions only (ignore Dropped, Activated, Traded)
+   - Map team name → slot using TASK-104 system
+
+**Files to Create/Modify:**
+- `lib/importers/text-parser.ts` - New parser for copy/paste text
+- `lib/importers/draft-importer.ts` - Use new parser
+- `lib/importers/transaction-importer.ts` - Use new parser
+- `lib/importers/index.ts` - Update orchestrator
+- `app/api/admin/import/route.ts` - Accept text input
+- `app/(dashboard)/admin/import/page.tsx` - Add text paste option
+
+**Acceptance Criteria:**
+- [ ] Can paste draft text, specify year → imports correctly
+- [ ] Can paste FA text, specify year → imports correctly
+- [ ] Excel upload still works (reads first sheet)
+- [ ] No validation on sheet names
+- [ ] Team names map to slots correctly via TASK-104
+- [ ] Season created with correct totalRounds (27 or 28)
+
+---
+
+### TASK-106: Admin Team Management UI
+**Status:** NOT STARTED
+**Priority:** MEDIUM
+**Depends On:** TASK-104
+
+**Objective:** Allow commissioner to view and manage team slot aliases via Admin UI.
+
+**Features:**
+1. **View All Slots:** Display 10 slots with their name history
+2. **Add Alias:** When team renames, add new alias with year
+3. **Edit Alias:** Modify year ranges if needed
+4. **Validation:** Prevent duplicate names for same slot+year
+
+**UI Location:** `/admin/teams`
+
+**Files to Create:**
+- `app/(dashboard)/admin/teams/page.tsx` - Team management page
+- `app/api/admin/teams/route.ts` - CRUD for team aliases
+- `components/admin/team-slot-card.tsx` - Display component
+
+**Acceptance Criteria:**
+- [ ] Commissioner can view all 10 slots and their aliases
+- [ ] Commissioner can add new team name alias
+- [ ] Commissioner can edit alias year ranges
+- [ ] Non-commissioners cannot access (403)
+
+---
+
 ## Phase 2: Keeper Selection Interface
 
 ### TASK-200: Team Roster Display
@@ -552,9 +725,10 @@ When two players have the same keeper round:
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓ — Phase 3 IN PROGRESS
-**Next Step:** TASK-301 (Draft Board Filtering & Export) or Phase 4
-**Session Status:** COMPLETED 2026-01-16
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓
+**Blocker:** Import system broken - cannot import year-over-year data
+**Next Step:** TASK-104 (Team Identity System) → TASK-105 (Flexible Import Parser)
+**Session Status:** IN PROGRESS 2026-01-18
 
 ---
 
