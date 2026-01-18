@@ -29,10 +29,15 @@ export async function importTransactions(
     warnings: [],
   };
 
+  // Sort by date ascending (oldest first) so signings happen before drops
+  const sortedTransactions = [...transactions].sort(
+    (a, b) => a.transactionDate.getTime() - b.transactionDate.getTime()
+  );
+
   // Track created players to count accurately
   const createdPlayers = new Set<string>();
 
-  for (const tx of transactions) {
+  for (const tx of sortedTransactions) {
     try {
       // Validate team name (async check)
       const isValid = await isValidTeamName(tx.teamName);
