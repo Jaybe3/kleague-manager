@@ -23,7 +23,6 @@ async function main() {
       draftDate: new Date('2024-09-01T18:00:00Z'),
       keeperDeadline: new Date('2024-08-25T23:59:59Z'),
       totalRounds: 28,
-      maxKeepers: 3,
       isActive: true,
     },
   })
@@ -37,7 +36,6 @@ async function main() {
       draftDate: new Date('2025-09-01T18:00:00Z'),
       keeperDeadline: new Date('2025-08-25T23:59:59Z'),
       totalRounds: 28,
-      maxKeepers: 3,
       isActive: false,
     },
   })

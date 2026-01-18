@@ -7,7 +7,7 @@ import { DeadlineState } from "@/lib/keeper/selection-types";
 interface Season {
   year: number;
   isActive: boolean;
-  maxKeepers: number;
+  totalRounds: number;
   keeperDeadline: string;
   deadlineState: DeadlineState;
 }
@@ -297,11 +297,11 @@ export default function AdminSeasonsPage() {
           </table>
         </div>
 
-        {/* Max Keepers Info */}
+        {/* Info Note */}
         <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-md p-4">
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            <span className="font-medium">Note:</span> Max keepers and season activation are set during data import.
-            This page only manages keeper deadlines.
+            <span className="font-medium">Note:</span> Season activation is set during data import.
+            This page manages keeper deadlines.
           </p>
         </div>
       </div>

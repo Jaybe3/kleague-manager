@@ -174,7 +174,7 @@ export default function KeepersPage() {
     return null;
   }
 
-  const canSelectMore = data.selections.length < data.season.maxKeepers && data.deadlineInfo.canModify;
+  const canSelectMore = data.deadlineInfo.canModify;
   const canFinalize = data.selections.length > 0 && data.conflicts.length === 0 && !data.isFinalized && data.deadlineInfo.canModify;
 
   return (
@@ -233,11 +233,11 @@ export default function KeepersPage() {
         {/* Selected Keepers */}
         <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-4 md:p-6">
           <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">
-            Selected Keepers ({data.selections.length}/{data.season.maxKeepers})
+            Selected Keepers ({data.selections.length})
           </h2>
           <SelectedKeepersTable
             selections={data.selections}
-            maxKeepers={data.season.maxKeepers}
+            totalRounds={data.season.totalRounds}
             isFinalized={data.isFinalized}
             onRemove={handleRemovePlayer}
             onBump={handleBumpPlayer}

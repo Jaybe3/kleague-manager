@@ -101,7 +101,6 @@ export async function GET(request: NextRequest) {
       season: {
         year: season.year,
         totalRounds: season.totalRounds,
-        maxKeepers: season.maxKeepers,
       },
       teams: teams.map((t) => ({
         id: t.id,

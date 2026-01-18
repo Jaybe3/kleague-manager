@@ -5,7 +5,7 @@ import { KeeperSelectionInfo } from "@/lib/keeper/selection-types";
 
 interface SelectedKeepersTableProps {
   selections: KeeperSelectionInfo[];
-  maxKeepers: number;
+  totalRounds: number;
   isFinalized: boolean;
   onRemove: (playerId: string) => Promise<void>;
   onBump: (playerId: string, newRound: number) => Promise<void>;
@@ -14,7 +14,7 @@ interface SelectedKeepersTableProps {
 
 export function SelectedKeepersTable({
   selections,
-  maxKeepers,
+  totalRounds,
   isFinalized,
   onRemove,
   onBump,
@@ -66,7 +66,7 @@ export function SelectedKeepersTable({
       <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-md">
         <p>No keepers selected yet.</p>
         <p className="text-sm mt-1">
-          Select up to {maxKeepers} players from your eligible players below.
+          Select players from your eligible players below.
         </p>
       </div>
     );
@@ -195,7 +195,7 @@ export function SelectedKeepersTable({
         </tbody>
       </table>
       <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-        {selections.length} of {maxKeepers} keepers selected
+        {selections.length} keeper{selections.length !== 1 ? 's' : ''} selected
       </div>
     </div>
   );

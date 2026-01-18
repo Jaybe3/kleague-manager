@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 type ImportType = "draft" | "fa";
@@ -28,6 +28,12 @@ interface Team {
   id: string;
   teamName: string;
   slotId: number;
+}
+
+interface Season {
+  year: number;
+  totalRounds: number;
+  isActive: boolean;
 }
 
 export default function AdminImportPage() {
@@ -89,10 +95,37 @@ function ImportSection() {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [importType, setImportType] = useState<ImportType>("draft");
-  const [seasonYear, setSeasonYear] = useState("2024");
+  const [seasonYear, setSeasonYear] = useState("");
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [seasonsLoading, setSeasonsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch seasons on mount
+  useEffect(() => {
+    async function fetchSeasons() {
+      try {
+        const res = await fetch("/api/admin/seasons");
+        if (res.ok) {
+          const data = await res.json();
+          const sortedSeasons = (data.seasons as Season[]).sort((a, b) => a.year - b.year);
+          setSeasons(sortedSeasons);
+          // Default to the active season, or the most recent one
+          const activeSeason = sortedSeasons.find((s) => s.isActive);
+          const defaultSeason = activeSeason || sortedSeasons[sortedSeasons.length - 1];
+          if (defaultSeason) {
+            setSeasonYear(String(defaultSeason.year));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch seasons:", err);
+      } finally {
+        setSeasonsLoading(false);
+      }
+    }
+    fetchSeasons();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -186,15 +219,27 @@ function ImportSection() {
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
             Season Year
           </label>
-          <select
-            value={seasonYear}
-            onChange={(e) => setSeasonYear(e.target.value)}
-            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
-          >
-            <option value="2023">2023 (27 rounds)</option>
-            <option value="2024">2024 (27 rounds)</option>
-            <option value="2025">2025 (28 rounds)</option>
-          </select>
+          {seasonsLoading ? (
+            <div className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-zinc-100 dark:bg-zinc-700 text-zinc-500">
+              Loading seasons...
+            </div>
+          ) : seasons.length === 0 ? (
+            <div className="w-full px-3 py-2 border border-red-300 dark:border-red-600 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
+              No seasons found. Please create a season first.
+            </div>
+          ) : (
+            <select
+              value={seasonYear}
+              onChange={(e) => setSeasonYear(e.target.value)}
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
+            >
+              {seasons.map((season) => (
+                <option key={season.year} value={season.year}>
+                  {season.year} ({season.totalRounds} rounds){season.isActive ? " - Active" : ""}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Input Mode Toggle */}
@@ -269,7 +314,7 @@ function ImportSection() {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={loading || (inputMode === "text" ? !text.trim() : !file)}
+          disabled={loading || !seasonYear || (inputMode === "text" ? !text.trim() : !file)}
           className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-md transition-colors"
         >
           {loading ? "Importing..." : `Import ${importType === "draft" ? "Draft Picks" : "FA Signings"}`}

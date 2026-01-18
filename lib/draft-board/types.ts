@@ -3,7 +3,6 @@
 export interface DraftBoardSeason {
   year: number;
   totalRounds: number;
-  maxKeepers: number;
 }
 
 export interface DraftBoardTeam {

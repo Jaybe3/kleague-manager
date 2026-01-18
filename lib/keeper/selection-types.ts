@@ -49,7 +49,7 @@ export interface KeeperSelectionsResponse {
   };
   season: {
     year: number;
-    maxKeepers: number;
+    totalRounds: number;
     keeperDeadline: Date;
   };
   selections: KeeperSelectionInfo[];

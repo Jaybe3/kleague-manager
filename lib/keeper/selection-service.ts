@@ -219,7 +219,7 @@ export async function getTeamKeeperSelections(
     },
     season: {
       year: season.year,
-      maxKeepers: season.maxKeepers,
+      totalRounds: season.totalRounds,
       keeperDeadline: season.keeperDeadline,
     },
     selections,
@@ -240,24 +240,6 @@ export async function selectPlayer(
   playerId: string,
   targetYear: number
 ): Promise<SelectPlayerResult> {
-  // Get season to check maxKeepers
-  const season = await db.season.findUnique({
-    where: { year: targetYear },
-  });
-
-  if (!season) {
-    return { success: false, error: "Season not found" };
-  }
-
-  // Check current selection count
-  const currentCount = await db.keeperSelection.count({
-    where: { teamId, seasonYear: targetYear },
-  });
-
-  if (currentCount >= season.maxKeepers) {
-    return { success: false, error: `Maximum ${season.maxKeepers} keepers allowed` };
-  }
-
   // Check if player already selected
   const existing = await db.keeperSelection.findFirst({
     where: { teamId, playerId, seasonYear: targetYear },

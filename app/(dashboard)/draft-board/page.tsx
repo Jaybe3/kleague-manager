@@ -99,7 +99,7 @@ export default function DraftBoardPage() {
                 Draft Board - {data.season.year} Season
               </h1>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {data.season.totalRounds} rounds | {data.teams.length} teams | Max {data.season.maxKeepers} keepers per team
+                {data.season.totalRounds} rounds | {data.teams.length} teams
               </p>
             </div>
             <div className="flex items-center gap-4">
