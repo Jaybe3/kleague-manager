@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
@@ -31,6 +32,7 @@
     "prisma": "^5.22.0",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vercel": "^50.4.5",
     "vitest": "^4.0.17"
   }
 }
