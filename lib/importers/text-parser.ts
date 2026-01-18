@@ -30,38 +30,56 @@ export function parsePlayerString(playerStr: string): ParsedPlayer | null {
   // The bullet (•) separates position from NFL team
   const match = cleanedStr.match(/^(.+?)\s+([A-Z]{1,3})\s*•\s*([A-Z]{2,3})$/)
 
-  if (!match) {
-    // Try without NFL team (some formats may not include it)
-    const simpleMatch = cleanedStr.match(/^(.+?)\s+([A-Z]{1,3})$/)
-    if (simpleMatch) {
-      const [, fullName, position] = simpleMatch
-      const nameParts = fullName.trim().split(/\s+/)
-      const firstName = nameParts[0] || ''
-      const lastName = nameParts.slice(1).join(' ') || ''
-      const playerMatchKey = `${firstName}${lastName}`.replace(/[^a-zA-Z]/g, '')
+  if (match) {
+    const [, fullName, position] = match
+    const nameParts = fullName.trim().split(/\s+/)
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || ''
+    const playerMatchKey = `${firstName}${lastName}`.replace(/[^a-zA-Z]/g, '')
 
-      return {
-        playerMatchKey,
-        firstName,
-        lastName,
-        position: position.toUpperCase(),
-      }
+    return {
+      playerMatchKey,
+      firstName,
+      lastName,
+      position: position.toUpperCase(),
     }
-    return null
   }
 
-  const [, fullName, position] = match
-  const nameParts = fullName.trim().split(/\s+/)
-  const firstName = nameParts[0] || ''
-  const lastName = nameParts.slice(1).join(' ') || ''
-  const playerMatchKey = `${firstName}${lastName}`.replace(/[^a-zA-Z]/g, '')
+  // Try pattern for retired players with bullet but no team: "Name POSITION •"
+  const retiredMatch = cleanedStr.match(/^(.+?)\s+([A-Z]{1,3})\s*•\s*$/)
+  if (retiredMatch) {
+    const [, fullName, position] = retiredMatch
+    const nameParts = fullName.trim().split(/\s+/)
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || ''
+    const playerMatchKey = `${firstName}${lastName}`.replace(/[^a-zA-Z]/g, '')
 
-  return {
-    playerMatchKey,
-    firstName,
-    lastName,
-    position: position.toUpperCase(),
+    return {
+      playerMatchKey,
+      firstName,
+      lastName,
+      position: position.toUpperCase(),
+    }
   }
+
+  // Try without NFL team or bullet (some formats may not include it)
+  const simpleMatch = cleanedStr.match(/^(.+?)\s+([A-Z]{1,3})$/)
+  if (simpleMatch) {
+    const [, fullName, position] = simpleMatch
+    const nameParts = fullName.trim().split(/\s+/)
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || ''
+    const playerMatchKey = `${firstName}${lastName}`.replace(/[^a-zA-Z]/g, '')
+
+    return {
+      playerMatchKey,
+      firstName,
+      lastName,
+      position: position.toUpperCase(),
+    }
+  }
+
+  return null
 }
 
 // ============= Draft Text Parser =============
