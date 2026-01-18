@@ -18,12 +18,16 @@ export function getTotalRounds(year: number): number {
 /**
  * Parse player string from CBS format
  * Example: "Patrick Mahomes QB • KC" or "Jonathan Owens DB • CHI - Signed for $0"
+ * Also handles keeper suffix: "Patrick Mahomes QB • KC (Keeper)"
  */
 export function parsePlayerString(playerStr: string): ParsedPlayer | null {
   if (!playerStr || playerStr.trim() === '') return null
 
   // Remove any action suffix like "- Signed for $0" or "- Dropped"
-  const cleanedStr = playerStr.split(' - ')[0].trim()
+  let cleanedStr = playerStr.split(' - ')[0].trim()
+
+  // Remove "(Keeper)" suffix if present
+  cleanedStr = cleanedStr.replace(/\s*\(Keeper\)\s*$/i, '').trim()
 
   // Match pattern: "FirstName LastName POSITION • TEAM"
   // Position is typically 1-3 uppercase letters
