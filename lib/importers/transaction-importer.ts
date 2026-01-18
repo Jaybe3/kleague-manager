@@ -37,8 +37,9 @@ export async function importTransactions(
         continue;
       }
 
-      // Validate team name
-      if (!isValidTeamName(tx.teamName)) {
+      // Validate team name (async check)
+      const isValid = await isValidTeamName(tx.teamName);
+      if (!isValid) {
         result.errors.push(
           `Unknown team: "${tx.teamName}" for player ${tx.player.firstName} ${tx.player.lastName}`
         );

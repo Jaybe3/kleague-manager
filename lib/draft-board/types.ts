@@ -9,7 +9,7 @@ export interface DraftBoardSeason {
 export interface DraftBoardTeam {
   id: string;
   teamName: string;
-  permanentId: number; // 1-10, used for column ordering
+  slotId: number; // 1-10, used for column ordering
 }
 
 export interface DraftBoardKeeper {

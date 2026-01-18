@@ -51,11 +51,11 @@ export async function GET(request: NextRequest) {
     const previousYear = targetYear - 1;
     const teams = await db.team.findMany({
       where: { seasonYear: previousYear },
-      orderBy: { permanentId: "asc" },
+      orderBy: { slotId: "asc" },
       select: {
         id: true,
         teamName: true,
-        permanentId: true,
+        slotId: true,
       },
     });
 
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
       teams: teams.map((t) => ({
         id: t.id,
         teamName: t.teamName,
-        permanentId: t.permanentId,
+        slotId: t.slotId,
       })),
       keepers,
     };

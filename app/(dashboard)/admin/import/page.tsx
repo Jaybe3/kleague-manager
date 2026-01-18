@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type ImportType = "draft" | "fa";
+type InputMode = "text" | "file";
 type Tab = "import" | "trade";
 
 interface ImportResult {
@@ -26,7 +27,7 @@ interface ImportResult {
 interface Team {
   id: string;
   teamName: string;
-  permanentId: number;
+  slotId: number;
 }
 
 export default function AdminImportPage() {
@@ -45,7 +46,7 @@ export default function AdminImportPage() {
               onClick={() => router.push("/my-team")}
               className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
             >
-              ← Back to Dashboard
+              Back to Dashboard
             </button>
           </div>
 
@@ -84,6 +85,8 @@ export default function AdminImportPage() {
 // ============= Import Section =============
 
 function ImportSection() {
+  const [inputMode, setInputMode] = useState<InputMode>("text");
+  const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [importType, setImportType] = useState<ImportType>("draft");
   const [seasonYear, setSeasonYear] = useState("2024");
@@ -93,7 +96,12 @@ function ImportSection() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file) {
+
+    if (inputMode === "text" && !text.trim()) {
+      setError("Please paste data from CBS");
+      return;
+    }
+    if (inputMode === "file" && !file) {
       setError("Please select a file");
       return;
     }
@@ -103,15 +111,31 @@ function ImportSection() {
     setResult(null);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("importType", importType);
-      formData.append("seasonYear", seasonYear);
+      let response: Response;
 
-      const response = await fetch("/api/admin/import", {
-        method: "POST",
-        body: formData,
-      });
+      if (inputMode === "text") {
+        // Send JSON for text import
+        response = await fetch("/api/admin/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text,
+            importType,
+            seasonYear: parseInt(seasonYear, 10),
+          }),
+        });
+      } else {
+        // Send FormData for file import
+        const formData = new FormData();
+        formData.append("file", file!);
+        formData.append("importType", importType);
+        formData.append("seasonYear", seasonYear);
+
+        response = await fetch("/api/admin/import", {
+          method: "POST",
+          body: formData,
+        });
+      }
 
       const data = await response.json();
 
@@ -137,7 +161,7 @@ function ImportSection() {
         <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
           <li>1. <strong>Draft Picks:</strong> Import first to create season, teams, and players</li>
           <li>2. <strong>FA Signings:</strong> Import after draft data (requires teams to exist)</li>
-          <li>3. Select the year this data is for</li>
+          <li>3. Copy data from CBS and paste below, or upload an Excel file</li>
         </ul>
       </div>
 
@@ -162,33 +186,90 @@ function ImportSection() {
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
             Season Year
           </label>
-          <input
-            type="number"
+          <select
             value={seasonYear}
             onChange={(e) => setSeasonYear(e.target.value)}
-            min="2000"
-            max="2100"
             className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
-          />
+          >
+            <option value="2023">2023 (27 rounds)</option>
+            <option value="2024">2024 (27 rounds)</option>
+            <option value="2025">2025 (28 rounds)</option>
+          </select>
         </div>
 
-        {/* File Input */}
+        {/* Input Mode Toggle */}
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-            Excel File (.xlsx)
+            Input Method
           </label>
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
-          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setInputMode("text")}
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                inputMode === "text"
+                  ? "bg-blue-600 text-white"
+                  : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600"
+              }`}
+            >
+              Paste Text (Recommended)
+            </button>
+            <button
+              type="button"
+              onClick={() => setInputMode("file")}
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                inputMode === "file"
+                  ? "bg-blue-600 text-white"
+                  : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600"
+              }`}
+            >
+              Upload Excel
+            </button>
+          </div>
         </div>
+
+        {/* Text Input */}
+        {inputMode === "text" && (
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+              Paste CBS Data
+            </label>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={
+                importType === "draft"
+                  ? "Round 1\nPick\tTeam\tPlayer\t...\n1\tGo Go Garrett\tPatrick Mahomes QB • KC\t..."
+                  : "Date\tTeam\tPlayers\tEffective\n12/30/23 1:42 AM ET\tSweet Chin Music\tJonathan Owens DB • CHI - Signed for $0\t17"
+              }
+              rows={10}
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 font-mono text-sm"
+            />
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              Copy directly from CBS and paste here. Tab-separated values are expected.
+            </p>
+          </div>
+        )}
+
+        {/* File Input */}
+        {inputMode === "file" && (
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+              Excel File (.xlsx)
+            </label>
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
+            />
+          </div>
+        )}
 
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={loading || !file}
+          disabled={loading || (inputMode === "text" ? !text.trim() : !file)}
           className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-md transition-colors"
         >
           {loading ? "Importing..." : `Import ${importType === "draft" ? "Draft Picks" : "FA Signings"}`}
@@ -260,7 +341,7 @@ function ImportResultDisplay({ result }: { result: ImportResult }) {
           </h3>
           <ul className="text-sm text-yellow-700 dark:text-yellow-400 space-y-1 max-h-40 overflow-y-auto">
             {result.warnings.slice(0, 20).map((w, i) => (
-              <li key={i}>• {w}</li>
+              <li key={i}>{w}</li>
             ))}
             {result.warnings.length > 20 && (
               <li>... and {result.warnings.length - 20} more</li>
@@ -277,7 +358,7 @@ function ImportResultDisplay({ result }: { result: ImportResult }) {
           </h3>
           <ul className="text-sm text-red-700 dark:text-red-400 space-y-1 max-h-40 overflow-y-auto">
             {result.errors.slice(0, 20).map((e, i) => (
-              <li key={i}>• {e}</li>
+              <li key={i}>{e}</li>
             ))}
             {result.errors.length > 20 && (
               <li>... and {result.errors.length - 20} more</li>

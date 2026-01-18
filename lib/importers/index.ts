@@ -1,9 +1,10 @@
 import type { ImportType, SingleImportResult, TradeEntry } from "./types";
+import * as XLSX from "xlsx";
 import {
-  readExcelBuffer,
-  parseAllDraftPicks,
-  parseAllTransactions,
-} from "./excel-parser";
+  parseDraftText,
+  parseTransactionText,
+  getTotalRounds,
+} from "./text-parser";
 import {
   importDraftPicks,
   findOrCreateSeason,
@@ -12,21 +13,21 @@ import {
 } from "./draft-importer";
 import { importTransactions } from "./transaction-importer";
 import { db } from "@/lib/db";
-import { getTeamPermanentId, isValidTeamName } from "./team-mapper";
+import { isValidTeamName } from "./team-mapper";
 
 export * from "./types";
-export * from "./excel-parser";
+export * from "./text-parser";
 export * from "./team-mapper";
 export * from "./draft-importer";
 export * from "./transaction-importer";
 
-// ============= Single Import Functions =============
+// ============= Text Import Functions =============
 
 /**
- * Import draft picks only for a specific year
+ * Import draft data from pasted text
  */
-export async function importDraftData(
-  buffer: Buffer,
+export async function importDraftFromText(
+  text: string,
   seasonYear: number
 ): Promise<SingleImportResult> {
   const result: SingleImportResult = {
@@ -50,23 +51,12 @@ export async function importDraftData(
     // Create season if needed
     await findOrCreateSeason(seasonYear);
 
-    // Read Excel and parse draft sheet
-    const workbook = readExcelBuffer(buffer);
-
-    // Try to find a draft sheet - look for common patterns
-    const draftSheet = workbook.draft2024; // This reads "2024_Draft_team"
-
-    if (!draftSheet || draftSheet.length === 0) {
-      result.errors.push("No draft data found in Excel file. Expected sheet named '2024_Draft_team' or similar.");
-      return result;
-    }
-
-    // Parse draft picks with the user-specified year
-    const { picks, skipped } = parseAllDraftPicks(draftSheet, seasonYear);
-    result.skipped.invalid = skipped;
+    // Parse text
+    const { picks, errors: parseErrors } = parseDraftText(text, seasonYear);
+    result.errors.push(...parseErrors);
 
     if (picks.length === 0) {
-      result.errors.push("No valid draft picks found in the file.");
+      result.errors.push("No valid draft picks found in the text.");
       return result;
     }
 
@@ -89,10 +79,10 @@ export async function importDraftData(
 }
 
 /**
- * Import FA signings only for a specific year
+ * Import FA data from pasted text
  */
-export async function importFAData(
-  buffer: Buffer,
+export async function importFAFromText(
+  text: string,
   seasonYear: number
 ): Promise<SingleImportResult> {
   const result: SingleImportResult = {
@@ -123,28 +113,265 @@ export async function importFAData(
       return result;
     }
 
-    // Read Excel and parse transactions sheet
-    const workbook = readExcelBuffer(buffer);
-    const txSheet = workbook.transactions2024;
+    // Parse text
+    const { transactions, skippedDrops, errors: parseErrors } = parseTransactionText(text, seasonYear);
+    result.errors.push(...parseErrors);
 
-    if (!txSheet || txSheet.length === 0) {
-      result.errors.push("No transaction data found in Excel file. Expected sheet named '2024_Transactions' or similar.");
-      return result;
-    }
-
-    // Parse transactions with the user-specified year
-    const { transactions, skippedDrops, skippedInvalid } = parseAllTransactions(
-      txSheet,
-      seasonYear
-    );
-    result.skipped.invalid = skippedInvalid;
-    // Drops are expected to be skipped, add as info
     if (skippedDrops > 0) {
       result.warnings.push(`Skipped ${skippedDrops} drop transactions (only FA signings are imported)`);
     }
 
     if (transactions.length === 0) {
-      result.errors.push("No valid FA signings found in the file.");
+      result.errors.push("No valid FA signings found in the text.");
+      return result;
+    }
+
+    // Import the transactions
+    const importResult = await importTransactions(transactions);
+
+    result.imported.players = importResult.playersCreated;
+    result.imported.acquisitions = importResult.faSigningsCreated;
+    result.errors.push(...importResult.errors);
+    result.warnings.push(...importResult.warnings);
+
+    result.success = result.errors.length === 0;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    result.errors.push(`Import failed: ${message}`);
+  }
+
+  return result;
+}
+
+// ============= Excel Import Functions =============
+
+/**
+ * Read first sheet from Excel buffer (ignores sheet name)
+ */
+function readFirstSheet(buffer: Buffer): Record<string, unknown>[] {
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const firstSheetName = workbook.SheetNames[0];
+
+  if (!firstSheetName) {
+    throw new Error("Excel file has no sheets");
+  }
+
+  const sheet = workbook.Sheets[firstSheetName];
+  return XLSX.utils.sheet_to_json(sheet);
+}
+
+/**
+ * Import draft picks from Excel buffer (reads first sheet)
+ */
+export async function importDraftData(
+  buffer: Buffer,
+  seasonYear: number
+): Promise<SingleImportResult> {
+  const result: SingleImportResult = {
+    success: false,
+    importType: "draft",
+    seasonYear,
+    imported: {
+      teams: 0,
+      players: 0,
+      acquisitions: 0,
+    },
+    skipped: {
+      duplicates: 0,
+      invalid: 0,
+    },
+    errors: [],
+    warnings: [],
+  };
+
+  try {
+    // Create season if needed
+    await findOrCreateSeason(seasonYear);
+
+    // Read first sheet from Excel
+    const rows = readFirstSheet(buffer);
+
+    if (!rows || rows.length === 0) {
+      result.errors.push("No data found in Excel file.");
+      return result;
+    }
+
+    // Convert rows to draft picks
+    // Expected columns: Pick, Team, Player (or similar)
+    const picks = [];
+    let currentRound = 0;
+    let pickInRound = 0;
+
+    for (const row of rows) {
+      const rowData = row as Record<string, unknown>;
+
+      // Check for round marker
+      const roundStr = String(rowData['Round'] || rowData['round'] || '');
+      if (roundStr && !isNaN(parseInt(roundStr, 10))) {
+        currentRound = parseInt(roundStr, 10);
+        pickInRound = 0;
+      }
+
+      // Try to extract pick data
+      const teamName = String(rowData['Team'] || rowData['team'] || '').trim();
+      const playerStr = String(rowData['Player'] || rowData['player'] || '').trim();
+
+      if (!teamName || !playerStr) continue;
+
+      // Parse player from string like "Patrick Mahomes QB • KC"
+      const playerMatch = playerStr.match(/^(.+?)\s+([A-Z]{1,3})\s*•?\s*([A-Z]{2,3})?$/);
+      if (!playerMatch) continue;
+
+      const [, fullName, position] = playerMatch;
+      const nameParts = fullName.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      const playerMatchKey = `${firstName}${lastName}`.replace(/[^a-zA-Z]/g, '');
+
+      pickInRound++;
+      const overallPick = currentRound > 0 ? (currentRound - 1) * 10 + pickInRound : pickInRound;
+
+      picks.push({
+        player: {
+          playerMatchKey,
+          firstName,
+          lastName,
+          position: position.toUpperCase(),
+        },
+        teamName,
+        seasonYear,
+        draftRound: currentRound || Math.ceil(overallPick / 10),
+        draftPick: overallPick,
+      });
+    }
+
+    if (picks.length === 0) {
+      result.errors.push("No valid draft picks found in the Excel file.");
+      return result;
+    }
+
+    // Import the draft picks
+    const importResult = await importDraftPicks(picks);
+
+    result.imported.teams = importResult.teamsCreated;
+    result.imported.players = importResult.playersCreated;
+    result.imported.acquisitions = importResult.acquisitionsCreated;
+    result.errors.push(...importResult.errors);
+    result.warnings.push(...importResult.warnings);
+
+    result.success = result.errors.length === 0;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    result.errors.push(`Import failed: ${message}`);
+  }
+
+  return result;
+}
+
+/**
+ * Import FA signings from Excel buffer (reads first sheet)
+ */
+export async function importFAData(
+  buffer: Buffer,
+  seasonYear: number
+): Promise<SingleImportResult> {
+  const result: SingleImportResult = {
+    success: false,
+    importType: "fa",
+    seasonYear,
+    imported: {
+      teams: 0,
+      players: 0,
+      acquisitions: 0,
+    },
+    skipped: {
+      duplicates: 0,
+      invalid: 0,
+    },
+    errors: [],
+    warnings: [],
+  };
+
+  try {
+    // Check that season exists
+    const season = await db.season.findUnique({
+      where: { year: seasonYear },
+    });
+
+    if (!season) {
+      result.errors.push(`Season ${seasonYear} not found. Please import draft data first.`);
+      return result;
+    }
+
+    // Read first sheet from Excel
+    const rows = readFirstSheet(buffer);
+
+    if (!rows || rows.length === 0) {
+      result.errors.push("No data found in Excel file.");
+      return result;
+    }
+
+    // Convert rows to transactions
+    const transactions = [];
+    let skippedDrops = 0;
+
+    for (const row of rows) {
+      const rowData = row as Record<string, unknown>;
+
+      const teamName = String(rowData['Team'] || rowData['team'] || '').trim();
+      const playersStr = String(rowData['Players'] || rowData['players'] || rowData['Player'] || '').trim();
+      const dateStr = String(rowData['Date'] || rowData['date'] || '').trim();
+
+      if (!teamName || !playersStr) continue;
+
+      // Check if it's a drop
+      if (playersStr.toLowerCase().includes('dropped')) {
+        skippedDrops++;
+        continue;
+      }
+
+      // Only process signings
+      if (!playersStr.toLowerCase().includes('signed')) continue;
+
+      // Parse player
+      const playerMatch = playersStr.match(/^(.+?)\s+([A-Z]{1,3})\s*•?\s*([A-Z]{2,3})?\s*-?\s*Signed/i);
+      if (!playerMatch) continue;
+
+      const [, fullName, position] = playerMatch;
+      const nameParts = fullName.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      const playerMatchKey = `${firstName}${lastName}`.replace(/[^a-zA-Z]/g, '');
+
+      // Parse date
+      let transactionDate = new Date();
+      if (dateStr) {
+        const parsed = new Date(dateStr);
+        if (!isNaN(parsed.getTime())) {
+          transactionDate = parsed;
+        }
+      }
+
+      transactions.push({
+        player: {
+          playerMatchKey,
+          firstName,
+          lastName,
+          position: position.toUpperCase(),
+        },
+        teamName,
+        seasonYear,
+        transactionType: 'FA' as const,
+        transactionDate,
+      });
+    }
+
+    if (skippedDrops > 0) {
+      result.warnings.push(`Skipped ${skippedDrops} drop transactions`);
+    }
+
+    if (transactions.length === 0) {
+      result.errors.push("No valid FA signings found in the Excel file.");
       return result;
     }
 
@@ -178,11 +405,13 @@ export interface TradeResult {
  */
 export async function enterTrade(trade: TradeEntry): Promise<TradeResult> {
   try {
-    // Validate teams
-    if (!isValidTeamName(trade.fromTeamName)) {
+    // Validate teams (async)
+    const fromValid = await isValidTeamName(trade.fromTeamName);
+    if (!fromValid) {
       return { success: false, error: `Unknown team: "${trade.fromTeamName}"` };
     }
-    if (!isValidTeamName(trade.toTeamName)) {
+    const toValid = await isValidTeamName(trade.toTeamName);
+    if (!toValid) {
       return { success: false, error: `Unknown team: "${trade.toTeamName}"` };
     }
 

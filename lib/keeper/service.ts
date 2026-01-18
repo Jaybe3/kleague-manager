@@ -29,7 +29,7 @@ export interface TeamRosterWithKeeperCosts {
   team: {
     id: string;
     teamName: string;
-    permanentId: number;
+    slotId: number;
     seasonYear: number;
   };
   players: PlayerKeeperCostResult[];
@@ -224,7 +224,7 @@ export async function getTeamRosterWithKeeperCosts(
     team: {
       id: team.id,
       teamName: team.teamName,
-      permanentId: team.permanentId,
+      slotId: team.slotId,
       seasonYear: team.seasonYear,
     },
     players,
@@ -244,7 +244,7 @@ export async function getAllTeamsKeeperCosts(
 ): Promise<TeamRosterWithKeeperCosts[]> {
   const teams = await db.team.findMany({
     where: { seasonYear },
-    orderBy: { permanentId: "asc" },
+    orderBy: { slotId: "asc" },
   });
 
   const results: TeamRosterWithKeeperCosts[] = [];

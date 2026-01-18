@@ -76,10 +76,10 @@ export interface ParsedDraftPick {
   seasonYear: number;
   draftRound: number;
   draftPick: number;
-  wasKeptIn2024: boolean;
-  round2024: number | null;
-  round2025: number | null;
-  isDropped: boolean;
+  wasKeptIn2024?: boolean;
+  round2024?: number | null;
+  round2025?: number | null;
+  isDropped?: boolean;
 }
 
 export interface ParsedTransaction {
@@ -118,7 +118,7 @@ export interface ImportResult {
 }
 
 export interface TeamMapping {
-  permanentId: number;
+  slotId: number;
   canonicalName: string;
   aliases: string[];
 }

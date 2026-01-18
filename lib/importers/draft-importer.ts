@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { ParsedDraftPick, ParsedPlayer } from "./types";
-import { getTeamPermanentId, isValidTeamName } from "./team-mapper";
+import { getSlotIdFromTeamName, isValidTeamName } from "./team-mapper";
+import { getTotalRounds } from "./text-parser";
 
 // ============= Player Operations =============
 
@@ -48,19 +49,23 @@ export async function updatePlayerIfNeeded(
 // ============= Team Operations =============
 
 /**
- * Find or create a team for a season
+ * Find or create a team for a season using slot-based identity
  */
 export async function findOrCreateTeam(
   teamName: string,
   seasonYear: number,
   draftPosition: number
 ): Promise<string> {
-  const permanentId = getTeamPermanentId(teamName);
+  const slotId = await getSlotIdFromTeamName(teamName, seasonYear);
+
+  if (!slotId) {
+    throw new Error(`Unknown team: "${teamName}" for season ${seasonYear}`);
+  }
 
   const existing = await db.team.findUnique({
     where: {
-      permanentId_seasonYear: {
-        permanentId,
+      slotId_seasonYear: {
+        slotId,
         seasonYear,
       },
     },
@@ -72,7 +77,7 @@ export async function findOrCreateTeam(
 
   const created = await db.team.create({
     data: {
-      permanentId,
+      slotId,
       teamName: teamName.trim(),
       seasonYear,
       draftPosition,
@@ -83,18 +88,22 @@ export async function findOrCreateTeam(
 }
 
 /**
- * Get team ID by permanent ID and season
+ * Get team ID by slot and season
  */
 export async function getTeamId(
   teamName: string,
   seasonYear: number
 ): Promise<string | null> {
-  const permanentId = getTeamPermanentId(teamName);
+  const slotId = await getSlotIdFromTeamName(teamName, seasonYear);
+
+  if (!slotId) {
+    return null;
+  }
 
   const team = await db.team.findUnique({
     where: {
-      permanentId_seasonYear: {
-        permanentId,
+      slotId_seasonYear: {
+        slotId,
         seasonYear,
       },
     },
@@ -106,7 +115,7 @@ export async function getTeamId(
 // ============= Season Operations =============
 
 /**
- * Find or create a season
+ * Find or create a season with correct totalRounds
  */
 export async function findOrCreateSeason(year: number): Promise<string> {
   const existing = await db.season.findUnique({
@@ -121,12 +130,15 @@ export async function findOrCreateSeason(year: number): Promise<string> {
   const draftDate = new Date(year, 7, 25); // August 25
   const keeperDeadline = new Date(year, 7, 20); // August 20
 
+  // Use correct totalRounds based on year
+  const totalRounds = getTotalRounds(year);
+
   const created = await db.season.create({
     data: {
       year,
       draftDate,
       keeperDeadline,
-      totalRounds: 28,
+      totalRounds,
       isActive: false,
     },
   });
@@ -175,8 +187,9 @@ export async function importDraftPicks(
 
   for (const pick of picks) {
     try {
-      // Validate team name
-      if (!isValidTeamName(pick.teamName)) {
+      // Validate team name (async check)
+      const isValid = await isValidTeamName(pick.teamName);
+      if (!isValid) {
         result.errors.push(`Unknown team: "${pick.teamName}" for player ${pick.player.firstName} ${pick.player.lastName}`);
         continue;
       }

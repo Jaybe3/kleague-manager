@@ -109,7 +109,7 @@ async function getKeeperHistory(
 export async function getTeamByManagerId(
   managerId: string,
   seasonYear: number
-): Promise<{ id: string; teamName: string; permanentId: number } | null> {
+): Promise<{ id: string; teamName: string; slotId: number } | null> {
   const team = await db.team.findFirst({
     where: {
       managerId: managerId,
@@ -118,7 +118,7 @@ export async function getTeamByManagerId(
     select: {
       id: true,
       teamName: true,
-      permanentId: true,
+      slotId: true,
     },
   });
 
