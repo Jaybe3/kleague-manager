@@ -8,6 +8,7 @@ import { isValidTeamName } from "./team-mapper";
 export interface TransactionImportResult {
   faSigningsCreated: number;
   tradesCreated: number;
+  dropsProcessed: number;
   playersCreated: number;
   errors: string[];
   warnings: string[];
@@ -22,6 +23,7 @@ export async function importTransactions(
   const result: TransactionImportResult = {
     faSigningsCreated: 0,
     tradesCreated: 0,
+    dropsProcessed: 0,
     playersCreated: 0,
     errors: [],
     warnings: [],
@@ -32,11 +34,6 @@ export async function importTransactions(
 
   for (const tx of transactions) {
     try {
-      // Skip drops - we only import acquisitions
-      if (tx.transactionType === "DROP") {
-        continue;
-      }
-
       // Validate team name (async check)
       const isValid = await isValidTeamName(tx.teamName);
       if (!isValid) {
@@ -55,7 +52,50 @@ export async function importTransactions(
         continue;
       }
 
-      // Find or create player
+      // Handle DROP transactions
+      if (tx.transactionType === "DROP") {
+        // Find the player
+        const player = await db.player.findUnique({
+          where: { playerMatchKey: tx.player.playerMatchKey },
+        });
+
+        if (!player) {
+          result.warnings.push(
+            `Cannot drop player not in system: ${tx.player.firstName} ${tx.player.lastName}`
+          );
+          continue;
+        }
+
+        // Find their most recent active acquisition on this team
+        const acquisition = await db.playerAcquisition.findFirst({
+          where: {
+            playerId: player.id,
+            teamId: teamId,
+            droppedDate: null,
+          },
+          orderBy: {
+            acquisitionDate: "desc",
+          },
+        });
+
+        if (!acquisition) {
+          result.warnings.push(
+            `No active acquisition found for ${tx.player.firstName} ${tx.player.lastName} on ${tx.teamName}`
+          );
+          continue;
+        }
+
+        // Update the acquisition with droppedDate
+        await db.playerAcquisition.update({
+          where: { id: acquisition.id },
+          data: { droppedDate: tx.transactionDate },
+        });
+
+        result.dropsProcessed++;
+        continue;
+      }
+
+      // For FA and TRADE, find or create player
       const existingPlayer = await db.player.findUnique({
         where: { playerMatchKey: tx.player.playerMatchKey },
       });

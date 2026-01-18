@@ -114,25 +114,26 @@ export async function importFAFromText(
     }
 
     // Parse text
-    const { transactions, skippedDrops, errors: parseErrors } = parseTransactionText(text, seasonYear);
+    const { transactions, errors: parseErrors } = parseTransactionText(text, seasonYear);
     result.errors.push(...parseErrors);
 
-    if (skippedDrops > 0) {
-      result.warnings.push(`Skipped ${skippedDrops} drop transactions (only FA signings are imported)`);
-    }
-
     if (transactions.length === 0) {
-      result.errors.push("No valid FA signings found in the text.");
+      result.errors.push("No valid transactions found in the text.");
       return result;
     }
 
-    // Import the transactions
+    // Import the transactions (FA signings and drops)
     const importResult = await importTransactions(transactions);
 
     result.imported.players = importResult.playersCreated;
     result.imported.acquisitions = importResult.faSigningsCreated;
     result.errors.push(...importResult.errors);
     result.warnings.push(...importResult.warnings);
+
+    // Report drops processed
+    if (importResult.dropsProcessed > 0) {
+      result.warnings.push(`Processed ${importResult.dropsProcessed} drop transactions`);
+    }
 
     result.success = result.errors.length === 0;
   } catch (error) {

@@ -222,12 +222,10 @@ export function parseTransactionAction(actionStr: string): 'FA' | 'DROP' | null 
  */
 export function parseTransactionText(text: string, seasonYear: number): {
   transactions: ParsedTransaction[]
-  skippedDrops: number
   errors: string[]
 } {
   const transactions: ParsedTransaction[] = []
   const errors: string[] = []
-  let skippedDrops = 0
 
   const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0)
 
@@ -253,13 +251,8 @@ export function parseTransactionText(text: string, seasonYear: number): {
     // Determine transaction type from action
     const transactionType = parseTransactionAction(playersStr)
 
-    if (transactionType === 'DROP') {
-      skippedDrops++
-      continue
-    }
-
-    if (transactionType !== 'FA') {
-      // Skip non-FA transactions (trades, activations, etc.)
+    if (transactionType === null) {
+      // Skip non-FA/DROP transactions (trades, activations, etc.)
       continue
     }
 
@@ -267,6 +260,17 @@ export function parseTransactionText(text: string, seasonYear: number): {
     const player = parsePlayerString(playersStr)
     if (!player) {
       errors.push(`Could not parse player: "${playersStr}"`)
+      continue
+    }
+
+    if (transactionType === 'DROP') {
+      transactions.push({
+        player,
+        teamName: teamName.trim(),
+        seasonYear,
+        transactionType: 'DROP',
+        transactionDate,
+      })
       continue
     }
 
@@ -279,7 +283,7 @@ export function parseTransactionText(text: string, seasonYear: number): {
     })
   }
 
-  return { transactions, skippedDrops, errors }
+  return { transactions, errors }
 }
 
 // ============= Auto-detect Format =============
