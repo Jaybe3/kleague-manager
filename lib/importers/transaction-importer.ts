@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import type { ParsedTransaction } from "./types";
 import { findOrCreatePlayer, getTeamId } from "./draft-importer";
-import { isValidTeamName } from "./team-mapper";
+import { isValidTeamName, getSlotIdFromTeamName } from "./team-mapper";
 
 // ============= Transaction Import =============
 
@@ -59,6 +59,16 @@ export async function importTransactions(
 
       // Handle DROP transactions
       if (tx.transactionType === "DROP") {
+        // Get slot ID from team name (works via fallback for retroactive renames)
+        const slotId = await getSlotIdFromTeamName(tx.teamName, tx.seasonYear);
+
+        if (!slotId) {
+          result.warnings.push(
+            `Unknown team for drop: "${tx.teamName}" for ${tx.player.firstName} ${tx.player.lastName}`
+          );
+          continue;
+        }
+
         // Find the player
         const player = await db.player.findUnique({
           where: { playerMatchKey: tx.player.playerMatchKey },
@@ -71,11 +81,11 @@ export async function importTransactions(
           continue;
         }
 
-        // Find their most recent active acquisition on this team
+        // Find their most recent active acquisition on this slot (handles team renames)
         const acquisition = await db.playerAcquisition.findFirst({
           where: {
             playerId: player.id,
-            teamId: teamId,
+            team: { slotId: slotId },
             droppedDate: null,
           },
           orderBy: {
@@ -85,7 +95,7 @@ export async function importTransactions(
 
         if (!acquisition) {
           result.warnings.push(
-            `No active acquisition found for ${tx.player.firstName} ${tx.player.lastName} on ${tx.teamName}`
+            `No active acquisition found for ${tx.player.firstName} ${tx.player.lastName} on slot ${slotId}`
           );
           continue;
         }
