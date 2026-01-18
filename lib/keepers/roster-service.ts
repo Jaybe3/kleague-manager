@@ -105,12 +105,14 @@ async function getKeeperHistory(
 
 /**
  * Get team by manager's user ID
+ * Falls back to most recent team if no team exists for the requested season
  */
 export async function getTeamByManagerId(
   managerId: string,
   seasonYear: number
 ): Promise<{ id: string; teamName: string; slotId: number } | null> {
-  const team = await db.team.findFirst({
+  // First try exact match for requested season
+  let team = await db.team.findFirst({
     where: {
       managerId: managerId,
       seasonYear: seasonYear,
@@ -121,6 +123,19 @@ export async function getTeamByManagerId(
       slotId: true,
     },
   });
+
+  // If no team for requested season, fall back to most recent team
+  if (!team) {
+    team = await db.team.findFirst({
+      where: { managerId: managerId },
+      orderBy: { seasonYear: "desc" },
+      select: {
+        id: true,
+        teamName: true,
+        slotId: true,
+      },
+    });
+  }
 
   return team;
 }
