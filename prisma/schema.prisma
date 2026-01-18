@@ -24,11 +24,37 @@ model User {
   @@map("users")
 }
 
+// ============= TEAM SLOTS (Permanent League Positions) =============
+
+model TeamSlot {
+  id        Int      @id                    // 1-10, permanent league positions
+  createdAt DateTime @default(now()) @map("created_at")
+
+  aliases TeamAlias[]
+  teams   Team[]
+
+  @@map("team_slots")
+}
+
+model TeamAlias {
+  id        String   @id @default(cuid())
+  slotId    Int      @map("slot_id")
+  teamName  String   @map("team_name")
+  validFrom Int      @map("valid_from")     // Year this name started
+  validTo   Int?     @map("valid_to")       // null = current
+  createdAt DateTime @default(now()) @map("created_at")
+
+  slot TeamSlot @relation(fields: [slotId], references: [id])
+
+  @@unique([slotId, teamName])
+  @@map("team_aliases")
+}
+
 // ============= TEAMS =============
 
 model Team {
   id            String   @id @default(cuid())
-  permanentId   Int      @unique @map("permanent_id")
+  slotId        Int      @map("slot_id")
   teamName      String   @map("team_name")
   seasonYear    Int      @map("season_year")
   draftPosition Int      @map("draft_position")
@@ -36,11 +62,12 @@ model Team {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
+  slot         TeamSlot            @relation(fields: [slotId], references: [id])
   manager      User?               @relation(fields: [managerId], references: [id])
   acquisitions PlayerAcquisition[]
   keepers      KeeperSelection[]
 
-  @@unique([permanentId, seasonYear])
+  @@unique([slotId, seasonYear])
   @@map("teams")
 }
 

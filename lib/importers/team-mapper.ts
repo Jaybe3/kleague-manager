@@ -1,62 +1,4 @@
-import type { TeamMapping } from "./types";
-
-/**
- * Team mappings with permanentId (1-10)
- * permanentId stays constant even if team names change year-to-year
- * aliases handle variations in spacing, capitalization, etc.
- */
-const TEAM_MAPPINGS: TeamMapping[] = [
-  {
-    permanentId: 1,
-    canonicalName: "Gatordontplay",
-    aliases: ["gatordontplay", "gatordontplay "],
-  },
-  {
-    permanentId: 2,
-    canonicalName: "Team 4",
-    aliases: ["team 4"],
-  },
-  {
-    permanentId: 3,
-    canonicalName: "Go Go Garrett",
-    aliases: ["go go garrett"],
-  },
-  {
-    permanentId: 4,
-    canonicalName: "The Bushwhackers",
-    aliases: ["the bushwhackers"],
-  },
-  {
-    permanentId: 5,
-    canonicalName: "Fields of Dreams",
-    aliases: ["fields of dreams"],
-  },
-  {
-    permanentId: 6,
-    canonicalName: "Let Bijans be Bijans",
-    aliases: ["let bijans be bijans", "let bijans be bijans "],
-  },
-  {
-    permanentId: 7,
-    canonicalName: "Box of Rocks",
-    aliases: ["box of rocks"],
-  },
-  {
-    permanentId: 8,
-    canonicalName: "Woody and the Jets!",
-    aliases: ["woody and the jets!", "woody and the jets"],
-  },
-  {
-    permanentId: 9,
-    canonicalName: "Discount Belichick",
-    aliases: ["discount belichick"],
-  },
-  {
-    permanentId: 10,
-    canonicalName: "Sweet Chin Music",
-    aliases: ["sweet chin music"],
-  },
-];
+import { db } from '@/lib/db'
 
 /**
  * Normalize team name for matching
@@ -64,84 +6,170 @@ const TEAM_MAPPINGS: TeamMapping[] = [
  * - Convert to lowercase
  */
 export function normalizeTeamName(name: string): string {
-  return name.trim().toLowerCase();
+  return name.trim().toLowerCase()
 }
 
 /**
- * Get permanentId for a team name
+ * Get slot ID for a team name in a specific season year
+ * Handles CBS retroactive renames by checking year ranges
+ *
+ * @param teamName - The team name from CBS data
+ * @param seasonYear - The season year being imported
+ * @returns Slot ID (1-10) or null if not found
+ */
+export async function getSlotIdFromTeamName(
+  teamName: string,
+  seasonYear: number
+): Promise<number | null> {
+  const normalized = normalizeTeamName(teamName)
+
+  // Query aliases where name matches and year is in valid range
+  const alias = await db.teamAlias.findFirst({
+    where: {
+      teamName: {
+        equals: normalized,
+        mode: 'insensitive',
+      },
+      validFrom: { lte: seasonYear },
+      OR: [
+        { validTo: null },
+        { validTo: { gte: seasonYear } },
+      ],
+    },
+  })
+
+  if (alias) {
+    return alias.slotId
+  }
+
+  // Fallback: try exact match on any alias (handles CBS retroactive renames)
+  // e.g., CBS shows "Seal Team Nix" for 2023 data even though team was "Discount Belichick" then
+  const anyAlias = await db.teamAlias.findFirst({
+    where: {
+      teamName: {
+        equals: normalized,
+        mode: 'insensitive',
+      },
+    },
+  })
+
+  return anyAlias?.slotId ?? null
+}
+
+/**
+ * Get slot ID - throws if not found
  * @throws Error if team not found
  */
-export function getTeamPermanentId(teamName: string): number {
-  const normalized = normalizeTeamName(teamName);
+export async function getSlotIdOrThrow(
+  teamName: string,
+  seasonYear: number
+): Promise<number> {
+  const slotId = await getSlotIdFromTeamName(teamName, seasonYear)
 
-  for (const mapping of TEAM_MAPPINGS) {
-    if (
-      normalizeTeamName(mapping.canonicalName) === normalized ||
-      mapping.aliases.includes(normalized)
-    ) {
-      return mapping.permanentId;
-    }
+  if (slotId === null) {
+    throw new Error(
+      `Unknown team name: "${teamName}" for season ${seasonYear}. ` +
+      `Add this team to the TeamAlias table via Admin > Teams.`
+    )
   }
 
-  throw new Error(`Unknown team name: "${teamName}" (normalized: "${normalized}")`);
+  return slotId
 }
 
 /**
- * Get canonical team name from any variation
+ * Get all known team names for a slot
  */
-export function getCanonicalTeamName(teamName: string): string {
-  const normalized = normalizeTeamName(teamName);
+export async function getSlotAliases(slotId: number): Promise<string[]> {
+  const aliases = await db.teamAlias.findMany({
+    where: { slotId },
+    select: { teamName: true },
+  })
 
-  for (const mapping of TEAM_MAPPINGS) {
-    if (
-      normalizeTeamName(mapping.canonicalName) === normalized ||
-      mapping.aliases.includes(normalized)
-    ) {
-      return mapping.canonicalName;
-    }
-  }
-
-  throw new Error(`Unknown team name: "${teamName}"`);
+  return aliases.map(a => a.teamName)
 }
 
 /**
- * Get team mapping by permanentId
+ * Get current team name for a slot (validTo is null)
  */
-export function getTeamByPermanentId(permanentId: number): TeamMapping | undefined {
-  return TEAM_MAPPINGS.find((m) => m.permanentId === permanentId);
+export async function getCurrentTeamName(slotId: number): Promise<string | null> {
+  const alias = await db.teamAlias.findFirst({
+    where: {
+      slotId,
+      validTo: null,
+    },
+    select: { teamName: true },
+  })
+
+  return alias?.teamName ?? null
 }
 
 /**
- * Get all team mappings
+ * Get all slots with their current names
  */
-export function getAllTeamMappings(): TeamMapping[] {
-  return [...TEAM_MAPPINGS];
+export async function getAllSlots(): Promise<{ slotId: number; currentName: string }[]> {
+  const slots = await db.teamSlot.findMany({
+    include: {
+      aliases: {
+        where: { validTo: null },
+        take: 1,
+      },
+    },
+    orderBy: { id: 'asc' },
+  })
+
+  return slots.map(slot => ({
+    slotId: slot.id,
+    currentName: slot.aliases[0]?.teamName ?? `Slot ${slot.id}`,
+  }))
 }
 
 /**
- * Check if a team name is valid/known
+ * Check if a team name is valid/known for any year
  */
-export function isValidTeamName(teamName: string): boolean {
-  try {
-    getTeamPermanentId(teamName);
-    return true;
-  } catch {
-    return false;
-  }
+export async function isValidTeamName(teamName: string): Promise<boolean> {
+  const normalized = normalizeTeamName(teamName)
+
+  const alias = await db.teamAlias.findFirst({
+    where: {
+      teamName: {
+        equals: normalized,
+        mode: 'insensitive',
+      },
+    },
+  })
+
+  return alias !== null
 }
 
 /**
- * Add a new alias for an existing team
- * Used when discovering new name variations during import
+ * Add a new alias for a slot
+ * Used when commissioner adds new team name
  */
-export function addTeamAlias(permanentId: number, alias: string): void {
-  const mapping = TEAM_MAPPINGS.find((m) => m.permanentId === permanentId);
-  if (!mapping) {
-    throw new Error(`No team with permanentId: ${permanentId}`);
+export async function addTeamAlias(
+  slotId: number,
+  teamName: string,
+  validFrom: number,
+  validTo: number | null = null
+): Promise<void> {
+  // If adding a new current name, close out the previous current name
+  if (validTo === null) {
+    await db.teamAlias.updateMany({
+      where: {
+        slotId,
+        validTo: null,
+      },
+      data: {
+        validTo: validFrom - 1,
+      },
+    })
   }
 
-  const normalized = normalizeTeamName(alias);
-  if (!mapping.aliases.includes(normalized)) {
-    mapping.aliases.push(normalized);
-  }
+  await db.teamAlias.create({
+    data: {
+      slotId,
+      teamName,
+      validFrom,
+      validTo,
+    },
+  })
 }
