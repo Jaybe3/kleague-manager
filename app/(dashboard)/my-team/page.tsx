@@ -15,8 +15,11 @@ export default async function MyTeamPage() {
     redirect("/login");
   }
 
-  const seasonYear = await getCurrentSeasonYear();
-  const team = await getTeamByManagerId(session.user.id, seasonYear);
+  // Active season is what we're preparing for (e.g., 2026 draft)
+  // Roster season is the previous season's end-of-year roster (e.g., 2025)
+  const activeSeasonYear = await getCurrentSeasonYear();
+  const rosterSeasonYear = activeSeasonYear - 1;
+  const team = await getTeamByManagerId(session.user.id, rosterSeasonYear);
 
   // If no team assigned, show message
   if (!team) {
@@ -30,7 +33,7 @@ export default async function MyTeamPage() {
                 No Team Assigned
               </h2>
               <p className="text-yellow-700 dark:text-yellow-500">
-                You are not assigned to any team for the {seasonYear} season.
+                You are not assigned to any team for the {rosterSeasonYear} season.
                 Please contact the commissioner to be assigned to a team.
               </p>
             </div>
@@ -40,7 +43,7 @@ export default async function MyTeamPage() {
     );
   }
 
-  const roster = await getTeamRosterWithKeepers(team.id, seasonYear);
+  const roster = await getTeamRosterWithKeepers(team.id, rosterSeasonYear);
 
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 p-4 md:p-8">
@@ -55,7 +58,7 @@ export default async function MyTeamPage() {
                 {roster?.teamName ?? team.teamName}
               </h2>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {seasonYear} Season • {roster?.players.length ?? 0} Players
+                {rosterSeasonYear} Roster • {roster?.players.length ?? 0} Players • Keeper costs for {activeSeasonYear}
               </p>
             </div>
             <Link

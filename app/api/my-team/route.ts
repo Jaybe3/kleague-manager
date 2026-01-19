@@ -13,26 +13,30 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const seasonYear = await getCurrentSeasonYear();
+    // Active season is what we're preparing for (e.g., 2026 draft)
+    // Roster season is the previous season's end-of-year roster (e.g., 2025)
+    const activeSeasonYear = await getCurrentSeasonYear();
+    const rosterSeasonYear = activeSeasonYear - 1;
 
-    // Find the team managed by this user
-    const team = await getTeamByManagerId(session.user.id, seasonYear);
+    // Find the team managed by this user for the roster season
+    const team = await getTeamByManagerId(session.user.id, rosterSeasonYear);
 
     if (!team) {
       return NextResponse.json(
         {
           error: "No team found",
-          message: "You are not assigned to any team for this season. Contact the commissioner.",
-          seasonYear,
+          message: `You are not assigned to any team for the ${rosterSeasonYear} season. Contact the commissioner.`,
+          rosterSeasonYear,
+          activeSeasonYear,
         },
         { status: 404 }
       );
     }
 
-    // Get full roster with keeper costs
-    const roster = await getTeamRosterWithKeepers(team.id, seasonYear);
+    // Get full roster with keeper costs (costs calculated for activeSeasonYear)
+    const roster = await getTeamRosterWithKeepers(team.id, rosterSeasonYear);
 
-    return NextResponse.json(roster);
+    return NextResponse.json({ ...roster, activeSeasonYear });
   } catch (error) {
     console.error("Error fetching my team:", error);
     return NextResponse.json(

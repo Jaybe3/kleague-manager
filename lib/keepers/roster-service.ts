@@ -25,11 +25,12 @@ export async function getTeamRosterWithKeepers(
     return null;
   }
 
-  // Fetch all acquisitions for this team in the current season
+  // Fetch all acquisitions for this team in the current season (excluding dropped players)
   const acquisitions = await db.playerAcquisition.findMany({
     where: {
       teamId: teamId,
       seasonYear: targetSeasonYear,
+      droppedDate: null, // Only players still on roster
     },
     include: {
       player: true,
