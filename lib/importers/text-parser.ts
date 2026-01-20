@@ -261,10 +261,10 @@ export function parsePlayersColumn(playersStr: string): ParsedPlayerAction[] {
   // - Name (one or more words, can include Jr., III, O'Brien, etc.)
   // - Position (1-3 uppercase letters)
   // - Bullet (•)
-  // - NFL Team (2-3 uppercase letters)
+  // - NFL Team (2-3 uppercase letters, optional - may be missing for free agents)
   // - Dash and action (Signed for $X.XX, Dropped, or Traded from [Team])
   // Lookahead handles multi-word names like "Cooper Kupp" (FirstName LastName Position)
-  const playerRegex = /([A-Za-z][A-Za-z'.\-]+(?:\s+[A-Za-z'.\-]+)*)\s+([A-Z]{1,3})\s*•\s*([A-Z]{2,3})\s*-\s*(Signed\s+for\s+\$[\d.]+|Dropped|Traded\s+from\s+[^$]+?)(?=\s+[A-Z][a-z]+(?:\s+[A-Z][a-z'.\-]+)*\s+[A-Z]{1,3}\s*•|$)/gi
+  const playerRegex = /([A-Za-z][A-Za-z'.\-]+(?:\s+[A-Za-z'.\-]+)*)\s+([A-Z]{1,3})\s*•\s*([A-Z]{2,3})?\s*-\s*(Signed\s+for\s+\$[\d.]+|Dropped|Traded\s+from\s+[^$]+?)(?=\s+[A-Z][a-z]+(?:\s+[A-Z][a-z'.\-]+)*\s+[A-Z]{1,3}\s*•|$)/gi
 
   const results: ParsedPlayerAction[] = []
   let match
