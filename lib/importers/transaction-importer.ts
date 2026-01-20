@@ -135,13 +135,14 @@ export async function importTransactions(
       }
 
       // Check for existing acquisition (idempotent - safe to reimport)
-      // Match: same player + same team + same season + same type
+      // Match: same player + same team + same season + same type + same date
       const existingAcquisition = await db.playerAcquisition.findFirst({
         where: {
           playerId,
           teamId,
           seasonYear: tx.seasonYear,
           acquisitionType: tx.transactionType,
+          acquisitionDate: tx.transactionDate,
         },
       });
 
