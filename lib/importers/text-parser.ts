@@ -331,7 +331,27 @@ export function parseTransactionText(text: string, seasonYear: number): {
   const transactions: ParsedTransaction[] = []
   const errors: string[] = []
 
-  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+  // Preprocess: join continuation lines (lines without dates) to previous line
+  // CBS splits multi-player transactions across multiple lines
+  const rawLines = text.split('\n')
+  const joinedLines: string[] = []
+
+  for (const line of rawLines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+
+    // Check if line starts with a date pattern (M/D/YY or MM/DD/YY)
+    const startsWithDate = /^\d{1,2}\/\d{1,2}\/\d{2}/.test(trimmed)
+
+    if (startsWithDate || joinedLines.length === 0) {
+      joinedLines.push(trimmed)
+    } else {
+      // Continuation line - append to previous
+      joinedLines[joinedLines.length - 1] += ' ' + trimmed
+    }
+  }
+
+  const lines = joinedLines
 
   for (const line of lines) {
     // Skip header row
