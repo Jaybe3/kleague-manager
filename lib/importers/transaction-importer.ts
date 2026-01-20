@@ -81,12 +81,11 @@ export async function importTransactions(
           continue;
         }
 
-        // Find their most recent active acquisition on this slot for this season
+        // Find their most recent active acquisition on this slot (any season)
         const acquisition = await db.playerAcquisition.findFirst({
           where: {
             playerId: player.id,
             team: { slotId: slotId },
-            seasonYear: tx.seasonYear,
             droppedDate: null,
           },
           orderBy: {
