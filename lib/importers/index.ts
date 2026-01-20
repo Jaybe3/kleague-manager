@@ -446,6 +446,18 @@ export async function enterTrade(trade: TradeEntry): Promise<TradeResult> {
       },
     });
 
+    // Close ALL active acquisitions for this player in this season (any team)
+    await db.playerAcquisition.updateMany({
+      where: {
+        playerId,
+        seasonYear: trade.seasonYear,
+        droppedDate: null,
+      },
+      data: {
+        droppedDate: trade.tradeDate,
+      },
+    });
+
     // Create trade acquisition
     const tradeAcquisition = await db.playerAcquisition.create({
       data: {
