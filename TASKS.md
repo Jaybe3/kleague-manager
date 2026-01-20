@@ -726,9 +726,22 @@ When two players have the same keeper round:
 ---
 
 **Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓
-**Blocker:** Import system broken - cannot import year-over-year data
-**Next Step:** TASK-104 (Team Identity System) → TASK-105 (Flexible Import Parser)
-**Session Status:** IN PROGRESS 2026-01-18
+
+**Parser Fixes (2026-01-19) - NOT COMMITTED:**
+Parser issues identified and fixed during FA import testing:
+1. ✓ Multi-player rows - CBS combines "Signed" + "Dropped" in one row (parsePlayersColumn)
+2. ✓ Emoji stripping - Lock/box emojis (🔒 ⬛) break regex matching (stripEmojis)
+3. ✓ Duplicate detection - Timezone issue with date parsing (use date range matching)
+4. ✓ Trade parsing - "Traded from [Team]" format (regex + importer updates)
+
+Files modified (uncommitted):
+- `lib/importers/types.ts` - Added tradedFromTeam to ParsedTransaction
+- `lib/importers/text-parser.ts` - Multi-player parsing, emoji stripping, trade regex
+- `lib/importers/transaction-importer.ts` - Duplicate detection fix, TRADE handling
+
+**Blocker:** Database has broken data from partial imports. Need clean reimport of ALL teams.
+**Next Step:** Clean reimport (delete all 2025 data, reimport draft + FA for all teams)
+**Session Status:** Parser fixes complete, awaiting clean reimport - 2026-01-19
 
 ---
 

@@ -126,14 +126,23 @@ export async function importTransactions(
         }
       }
 
-      // Check for existing acquisition on same date (avoid duplicates)
+      // Check for existing acquisition on same calendar date (avoid duplicates)
+      // Use date range to handle timezone inconsistencies in CBS date parsing
+      const txDateStart = new Date(tx.transactionDate);
+      txDateStart.setUTCHours(0, 0, 0, 0);
+      const txDateEnd = new Date(tx.transactionDate);
+      txDateEnd.setUTCHours(23, 59, 59, 999);
+
       const existingAcquisition = await db.playerAcquisition.findFirst({
         where: {
           playerId,
           teamId,
           seasonYear: tx.seasonYear,
           acquisitionType: tx.transactionType,
-          acquisitionDate: tx.transactionDate,
+          acquisitionDate: {
+            gte: txDateStart,
+            lte: txDateEnd,
+          },
         },
       });
 
@@ -162,6 +171,27 @@ export async function importTransactions(
 
       // Handle trade
       if (tx.transactionType === "TRADE") {
+        // Duplicate detection for trades (same as FA - date range matching)
+        const existingTrade = await db.playerAcquisition.findFirst({
+          where: {
+            playerId,
+            teamId,
+            seasonYear: tx.seasonYear,
+            acquisitionType: "TRADE",
+            acquisitionDate: {
+              gte: txDateStart,
+              lte: txDateEnd,
+            },
+          },
+        });
+
+        if (existingTrade) {
+          result.warnings.push(
+            `Duplicate trade skipped: ${tx.player.firstName} ${tx.player.lastName} (TRADE on ${tx.transactionDate.toLocaleDateString()})`
+          );
+          continue;
+        }
+
         // For trades, we need to find the original acquisition to get draft info
         // The player retains their original draft round/year
         const originalAcquisition = await db.playerAcquisition.findFirst({
@@ -174,18 +204,56 @@ export async function importTransactions(
           },
         });
 
-        // Find the previous team (most recent acquisition before this trade)
-        const previousAcquisition = await db.playerAcquisition.findFirst({
-          where: {
-            playerId,
-            acquisitionDate: {
-              lt: tx.transactionDate,
+        // Find the source team using tradedFromTeam name or fallback to previous acquisition
+        let tradedFromTeamId: string | null = null;
+
+        if (tx.tradedFromTeam) {
+          // Look up source team by name
+          const sourceSlotId = await getSlotIdFromTeamName(tx.tradedFromTeam, tx.seasonYear);
+          if (sourceSlotId) {
+            const sourceTeam = await db.team.findFirst({
+              where: { slotId: sourceSlotId, seasonYear: tx.seasonYear },
+            });
+            if (sourceTeam) {
+              tradedFromTeamId = sourceTeam.id;
+
+              // Set droppedDate on source team's active acquisition
+              const sourceAcquisition = await db.playerAcquisition.findFirst({
+                where: {
+                  playerId,
+                  team: { slotId: sourceSlotId },
+                  droppedDate: null,
+                },
+                orderBy: {
+                  acquisitionDate: "desc",
+                },
+              });
+
+              if (sourceAcquisition) {
+                await db.playerAcquisition.update({
+                  where: { id: sourceAcquisition.id },
+                  data: { droppedDate: tx.transactionDate },
+                });
+              }
+            }
+          }
+        }
+
+        // Fallback: find previous acquisition if tradedFromTeam not provided
+        if (!tradedFromTeamId) {
+          const previousAcquisition = await db.playerAcquisition.findFirst({
+            where: {
+              playerId,
+              acquisitionDate: {
+                lt: tx.transactionDate,
+              },
             },
-          },
-          orderBy: {
-            acquisitionDate: "desc",
-          },
-        });
+            orderBy: {
+              acquisitionDate: "desc",
+            },
+          });
+          tradedFromTeamId = previousAcquisition?.teamId ?? null;
+        }
 
         await db.playerAcquisition.create({
           data: {
@@ -196,7 +264,7 @@ export async function importTransactions(
             draftRound: originalAcquisition?.draftRound ?? null,
             draftPick: originalAcquisition?.draftPick ?? null,
             acquisitionDate: tx.transactionDate,
-            tradedFromTeamId: previousAcquisition?.teamId ?? null,
+            tradedFromTeamId,
           },
         });
         result.tradesCreated++;

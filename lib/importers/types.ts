@@ -88,6 +88,7 @@ export interface ParsedTransaction {
   seasonYear: number;
   transactionType: "FA" | "TRADE" | "DROP";
   transactionDate: Date;
+  tradedFromTeam?: string; // Source team name for TRADE transactions
 }
 
 export interface ParsedKeeperSlot {

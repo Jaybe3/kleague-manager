@@ -1,0 +1,20 @@
+# Test Transaction Data - Slot 10 (2025 Season)
+# NOTE: Raw CBS transaction data needs to be re-captured from CBS Sports
+# This file should contain tab-separated FA transaction data for testing
+
+# Expected format (from CBS FA Transactions copy/paste):
+# Date	Team	Players	Effective
+# 12/30/24 1:42 AM ET	Team Name	Player Name POS • NFL - Signed for $0	17
+
+# Parser issues fixed in this session (2026-01-19):
+# 1. Multi-player rows - CBS combines "Signed" + "Dropped" in one row
+# 2. Emoji stripping - Lock/box emojis break regex matching
+# 3. Duplicate detection - Timezone issue with date parsing
+# 4. Trade parsing - "Traded from [Team]" format
+
+# Test cases that should work after fixes:
+# - "Dillon Gabriel QB • CLE - Signed for $0.00 Cooper Kupp WR • SEA - Dropped" -> 2 transactions
+# - "Jordan Love QB • GB - Traded from Sweet Chin Music" -> 1 TRADE transaction
+# - Rows with emojis should have emojis stripped before parsing
+
+# TODO: Re-capture raw CBS transaction data for slot 10 to validate parser fixes

@@ -16,6 +16,20 @@ export function getTotalRounds(year: number): number {
 }
 
 /**
+ * Strip emoji characters that can appear in CBS data
+ * Removes common emojis like 🔒 ⬛ that break regex matching
+ */
+export function stripEmojis(str: string): string {
+  return str
+    .replace(/[\u{1F300}-\u{1F9FF}]/gu, '') // Misc symbols, emoticons
+    .replace(/[\u{2600}-\u{26FF}]/gu, '')   // Misc symbols
+    .replace(/[\u{2700}-\u{27BF}]/gu, '')   // Dingbats
+    .replace(/[\u{25A0}-\u{25FF}]/gu, '')   // Geometric shapes (⬛)
+    .replace(/[\u{1F100}-\u{1F1FF}]/gu, '') // Enclosed alphanumerics
+    .trim()
+}
+
+/**
  * Parse player string from CBS format
  * Example: "Patrick Mahomes QB • KC" or "Jonathan Owens DB • CHI - Signed for $0"
  * Also handles keeper suffix: "Patrick Mahomes QB • KC (Keeper)"
@@ -217,12 +231,98 @@ export function parseTransactionAction(actionStr: string): 'FA' | 'DROP' | null 
 }
 
 /**
+ * Parsed player with their transaction action
+ */
+export interface ParsedPlayerAction {
+  player: ParsedPlayer
+  action: 'FA' | 'DROP' | 'TRADE'
+  tradedFromTeam?: string // Source team name for TRADE actions
+}
+
+/**
+ * Parse the "Players" column from CBS which may contain multiple players
+ *
+ * CBS combines signing + drop in single rows like:
+ * "Dillon Gabriel QB • CLE - Signed for $0.00 Cooper Kupp WR • SEA - Dropped"
+ *
+ * CBS trade format:
+ * "Jordan Love QB • GB - Traded from Nabers Think I'm Selling Dope"
+ *
+ * Each player follows format: [Name] [Position] • [Team] - [Action]
+ * Where [Action] is "Signed for $X.XX", "Dropped", or "Traded from [Team]"
+ */
+export function parsePlayersColumn(playersStr: string): ParsedPlayerAction[] {
+  if (!playersStr || playersStr.trim() === '') return []
+
+  // Strip emojis that can appear in CBS data
+  const cleaned = stripEmojis(playersStr)
+
+  // Regex to match each player entry:
+  // - Name (one or more words, can include Jr., III, O'Brien, etc.)
+  // - Position (1-3 uppercase letters)
+  // - Bullet (•)
+  // - NFL Team (2-3 uppercase letters)
+  // - Dash and action (Signed for $X.XX, Dropped, or Traded from [Team])
+  // Lookahead handles multi-word names like "Cooper Kupp" (FirstName LastName Position)
+  const playerRegex = /([A-Za-z][A-Za-z'.\-]+(?:\s+[A-Za-z'.\-]+)*)\s+([A-Z]{1,3})\s*•\s*([A-Z]{2,3})\s*-\s*(Signed\s+for\s+\$[\d.]+|Dropped|Traded\s+from\s+[^$]+?)(?=\s+[A-Z][a-z]+(?:\s+[A-Z][a-z'.\-]+)*\s+[A-Z]{1,3}\s*•|$)/gi
+
+  const results: ParsedPlayerAction[] = []
+  let match
+
+  while ((match = playerRegex.exec(cleaned)) !== null) {
+    const [, fullName, position, , actionStr] = match
+    const nameParts = fullName.trim().split(/\s+/)
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || ''
+    const playerMatchKey = `${firstName}${lastName}`.replace(/[^a-zA-Z]/g, '')
+
+    let action: 'FA' | 'DROP' | 'TRADE'
+    let tradedFromTeam: string | undefined
+
+    const actionLower = actionStr.toLowerCase()
+    if (actionLower.includes('signed')) {
+      action = 'FA'
+    } else if (actionLower.includes('traded from')) {
+      action = 'TRADE'
+      // Extract team name from "Traded from [Team Name]"
+      const tradeMatch = actionStr.match(/traded\s+from\s+(.+)/i)
+      if (tradeMatch) {
+        tradedFromTeam = tradeMatch[1].trim()
+      }
+    } else {
+      action = 'DROP'
+    }
+
+    const result: ParsedPlayerAction = {
+      player: {
+        playerMatchKey,
+        firstName,
+        lastName,
+        position: position.toUpperCase(),
+      },
+      action,
+    }
+
+    if (tradedFromTeam) {
+      result.tradedFromTeam = tradedFromTeam
+    }
+
+    results.push(result)
+  }
+
+  return results
+}
+
+/**
  * Parse FA transaction text from CBS copy/paste
  *
  * Format:
  * Date	Team	Players	Effective
  * 12/30/23 1:42 AM ET	Sweet Chin Music	Jonathan Owens DB • CHI - Signed for $0	17
  * 12/30/23 12:38 AM ET	Team 4	Mike Williams WR • NYJ - Dropped	17
+ *
+ * CBS may combine multiple players in one row:
+ * "Dillon Gabriel QB • CLE - Signed for $0.00 Cooper Kupp WR • SEA - Dropped"
  */
 export function parseTransactionText(text: string, seasonYear: number): {
   transactions: ParsedTransaction[]
@@ -252,39 +352,39 @@ export function parseTransactionText(text: string, seasonYear: number): {
       continue
     }
 
-    // Determine transaction type from action
-    const transactionType = parseTransactionAction(playersStr)
-
-    if (transactionType === null) {
-      // Skip non-FA/DROP transactions (trades, activations, etc.)
+    // Skip non-transaction rows (activations, deactivations, etc.)
+    // Check the whole string first before parsing individual players
+    const hasTransaction = playersStr.toLowerCase().includes('signed') ||
+                           playersStr.toLowerCase().includes('dropped') ||
+                           playersStr.toLowerCase().includes('traded')
+    if (!hasTransaction) {
       continue
     }
 
-    // Parse player
-    const player = parsePlayerString(playersStr)
-    if (!player) {
-      errors.push(`Could not parse player: "${playersStr}"`)
+    // Parse all players from the column (CBS may combine multiple in one row)
+    const playerActions = parsePlayersColumn(playersStr)
+
+    if (playerActions.length === 0) {
+      errors.push(`Could not parse players: "${playersStr}"`)
       continue
     }
 
-    if (transactionType === 'DROP') {
-      transactions.push({
+    // Create a transaction for each player found
+    for (const { player, action, tradedFromTeam } of playerActions) {
+      const transaction: ParsedTransaction = {
         player,
         teamName: teamName.trim(),
         seasonYear,
-        transactionType: 'DROP',
+        transactionType: action,
         transactionDate,
-      })
-      continue
-    }
+      }
 
-    transactions.push({
-      player,
-      teamName: teamName.trim(),
-      seasonYear,
-      transactionType: 'FA',
-      transactionDate,
-    })
+      if (tradedFromTeam) {
+        transaction.tradedFromTeam = tradedFromTeam
+      }
+
+      transactions.push(transaction)
+    }
   }
 
   return { transactions, errors }
