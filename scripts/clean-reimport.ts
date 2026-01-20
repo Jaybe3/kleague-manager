@@ -45,7 +45,7 @@ async function cleanReimport() {
 
   const teams = await db.team.findMany({
     where: { seasonYear: 2025 },
-    select: { id: true, name: true, slotId: true }
+    select: { id: true, teamName: true, slotId: true }
   });
 
   const teamMap = new Map(teams.map(t => [t.id, t]));
@@ -53,7 +53,7 @@ async function cleanReimport() {
   console.log('\nBreakdown by team:');
   for (const group of byTeam) {
     const team = teamMap.get(group.teamId);
-    console.log(`  Slot ${team?.slotId}: ${team?.name} - ${group._count} records`);
+    console.log(`  Slot ${team?.slotId}: ${team?.teamName} - ${group._count} records`);
   }
 
   console.log('\n--- DELETING ---\n');
