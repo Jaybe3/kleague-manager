@@ -62,10 +62,11 @@ This project follows the Verified Development Framework. Every action must be tr
 - Round 10: Y2=R10, Y3=R6, Y4=R2, Y5=INELIGIBLE
 - Free Agent: Y2=R15, Y3=R11, Y4=R7, Y5=R3, Y6=INELIGIBLE
 
-**Original Draft Rule:**
-- Search ALL teams for original DRAFT acquisition
-- Dropped/re-acquired players keep original draft cost
-- FA R15 only for players NEVER drafted
+**Keeper Base Acquisition Rule (Updated 2026-01-20):**
+- Fresh DRAFT → Use YOUR draft year/round (clean slate)
+- TRADE → Follow trade chain to original DRAFT (preserves history)
+- FA same season as a DRAFT → Inherit that season's draft round
+- FA never drafted that season → True FA, use Round 15
 
 ---
 
@@ -77,4 +78,4 @@ This project follows the Verified Development Framework. Every action must be tr
 
 ---
 
-**Last Updated:** January 18, 2026
+**Last Updated:** January 20, 2026

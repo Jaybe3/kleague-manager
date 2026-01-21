@@ -366,6 +366,55 @@ As a team manager, I want to see my current roster with each player's keeper cos
 
 ---
 
+### TASK-103b: Fix Keeper Acquisition Lookup Logic
+**Status:** COMPLETED
+**Completed:** 2026-01-20
+**Depends On:** TASK-103
+
+**Objective:** Fix the keeper base acquisition lookup to handle fresh drafts vs inherited costs correctly.
+
+**Problem:**
+The previous `findOriginalAcquisition()` searched ALL teams for ANY DRAFT acquisition. This was wrong because:
+- Kenneth Walker drafted Rd 9 by Go Go Garrett in 2023
+- You draft Kenneth Walker Rd 5 in 2025 (fresh draft, not keeper/trade)
+- Old code saw 2023 Rd 9 → calculated 2026 as Round 1 ❌
+- Should use YOUR 2025 Rd 5 → 2026 cost is Round 5 ✓
+
+**Key Insight:**
+When a player re-enters the draft pool (wasn't kept, wasn't traded), they get a **clean slate**. The new drafter's draft year/round becomes the keeper base.
+
+**Algorithm Implemented (`findKeeperBaseAcquisition`):**
+1. Get player's ACTIVE acquisition on this team (droppedDate = null)
+2. If DRAFT → Return this (your draft is the keeper base)
+3. If TRADE → Follow trade chain back to original DRAFT (trades preserve history)
+4. If FA → Check if player was DRAFTED same season by anyone:
+   - If YES → Return that same-season DRAFT (inherit draft round)
+   - If NO → Return FA acquisition (true FA, use Round 15)
+
+**Changes:**
+- Replaced `findOriginalAcquisition(playerId)` with `findKeeperBaseAcquisition(playerId, teamId)`
+- Added `followTradeChainToOrigin()` helper for TRADE acquisitions
+- Updated `getPlayerKeeperCost()` to use new function
+
+**Test Cases:**
+| Player | Scenario | Expected 2026 Cost |
+|--------|----------|-----------|
+| Kenneth Walker III | You drafted him Rd 5 in 2025 (fresh) | Round 5 |
+| Zaire Franklin | You drafted him Rd 1 in 2025 (fresh) | Round 1 |
+| Malik Nabers | You drafted him Rd 4 in 2024, kept 2025 | INELIGIBLE (4-4=0) |
+| Sam LaPorta | FA pickup 2025, but was drafted Rd 25 same season | Round 21 (25-4) |
+| George Karlaftis | FA pickup 2025, never drafted in 2025 | Round 15 |
+
+**Acceptance Criteria:**
+- [x] Fresh drafts use YOUR draft round (not historical drafts)
+- [x] Trades preserve original keeper history
+- [x] Same-season FA pickups inherit that season's draft round
+- [x] True FAs (never drafted that season) use Round 15
+- [x] TypeScript compiles with no errors
+- [x] All existing tests pass (23/23)
+
+---
+
 ### TASK-104: Team Identity System (Slots)
 **Status:** NOT STARTED
 **Priority:** CRITICAL - Blocks all imports
