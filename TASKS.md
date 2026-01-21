@@ -367,49 +367,69 @@ As a team manager, I want to see my current roster with each player's keeper cos
 ---
 
 ### TASK-103b: Fix Keeper Acquisition Lookup Logic
-**Status:** COMPLETED
+**Status:** SUPERSEDED by TASK-103-FINAL
 **Completed:** 2026-01-20
 **Depends On:** TASK-103
 
-**Objective:** Fix the keeper base acquisition lookup to handle fresh drafts vs inherited costs correctly.
+*See TASK-103-FINAL below for the complete rewrite.*
 
-**Problem:**
-The previous `findOriginalAcquisition()` searched ALL teams for ANY DRAFT acquisition. This was wrong because:
-- Kenneth Walker drafted Rd 9 by Go Go Garrett in 2023
-- You draft Kenneth Walker Rd 5 in 2025 (fresh draft, not keeper/trade)
-- Old code saw 2023 Rd 9 → calculated 2026 as Round 1 ❌
-- Should use YOUR 2025 Rd 5 → 2026 cost is Round 5 ✓
+---
 
-**Key Insight:**
-When a player re-enters the draft pool (wasn't kept, wasn't traded), they get a **clean slate**. The new drafter's draft year/round becomes the keeper base.
+### TASK-103-FINAL: Complete Keeper Acquisition Logic Rewrite
+**Status:** COMPLETED
+**Completed:** 2026-01-20
+**Depends On:** TASK-103
+**Supersedes:** TASK-103b
 
-**Algorithm Implemented (`findKeeperBaseAcquisition`):**
+**Objective:** Complete rewrite of keeper acquisition lookup with ALL rules handled correctly.
+
+**Key CBS Behavior:**
+When you KEEP a player, CBS creates a NEW "DRAFT" record each year at their keeper cost. So a kept player has MULTIPLE DRAFT records on the same slot across seasons.
+
+**Complete Rules Implemented:**
+1. **KEEPER (same slot, multiple seasons):** Find ALL acquisitions on this SLOT across seasons. Return the EARLIEST one - that's when the keeper clock started.
+2. **FRESH DRAFT (same slot, first appearance):** Only ONE acquisition exists on this slot. Keeper clock starts now.
+3. **TRADE:** Trades preserve history. Find the EARLIEST DRAFT across ALL teams.
+4. **FA (same season as a draft):** If player was DRAFTED same season by ANY team (then dropped), inherit that draft round.
+5. **TRUE FA:** If player was never drafted that season, use Round 15.
+
+**Algorithm (`findKeeperBaseAcquisition`):**
+```
 1. Get player's ACTIVE acquisition on this team (droppedDate = null)
-2. If DRAFT → Return this (your draft is the keeper base)
-3. If TRADE → Follow trade chain back to original DRAFT (trades preserve history)
-4. If FA → Check if player was DRAFTED same season by anyone:
-   - If YES → Return that same-season DRAFT (inherit draft round)
-   - If NO → Return FA acquisition (true FA, use Round 15)
+2. Get the team's SLOT ID
+3. Find ALL acquisitions for this player on this SLOT (any season)
+4. If multiple acquisitions exist on this slot:
+   → Return the EARLIEST one (keeper clock started there)
+5. If only ONE acquisition on this slot (current one):
+   a. If DRAFT → Fresh draft, return this acquisition
+   b. If TRADE → Find earliest DRAFT across ALL teams (trades preserve full history)
+   c. If FA → Check if drafted same season by ANY team
+      - If YES → Return that same-season DRAFT (inherit round)
+      - If NO → Return FA acquisition (true FA, Round 15)
+```
 
 **Changes:**
-- Replaced `findOriginalAcquisition(playerId)` with `findKeeperBaseAcquisition(playerId, teamId)`
-- Added `followTradeChainToOrigin()` helper for TRADE acquisitions
-- Updated `getPlayerKeeperCost()` to use new function
+- Complete rewrite of `findKeeperBaseAcquisition()` with slot-based lookup
+- Added `findOriginalDraftForTrade()` helper for TRADE acquisitions
+- Removed old `followTradeChainToOrigin()` function
 
 **Test Cases:**
-| Player | Scenario | Expected 2026 Cost |
-|--------|----------|-----------|
-| Kenneth Walker III | You drafted him Rd 5 in 2025 (fresh) | Round 5 |
-| Zaire Franklin | You drafted him Rd 1 in 2025 (fresh) | Round 1 |
-| Malik Nabers | You drafted him Rd 4 in 2024, kept 2025 | INELIGIBLE (4-4=0) |
-| Sam LaPorta | FA pickup 2025, but was drafted Rd 25 same season | Round 21 (25-4) |
-| George Karlaftis | FA pickup 2025, never drafted in 2025 | Round 15 |
+| Player | Situation | Expected 2026 Cost |
+|--------|-----------|-------------------|
+| Malik Nabers | 2024 Rd 4 on your slot, 2025 kept on your slot | INELIGIBLE (Year 3: 4-4=0) |
+| Kenneth Walker III | 2025 Rd 5, first year on your slot | Round 5 (Year 2) |
+| Zaire Franklin | 2025 Rd 1, first year on your slot | Round 1 (Year 2) |
+| Jayden Daniels | 2024 Rd 1 on your slot, 2025 kept | INELIGIBLE (Year 3: 1-4=-3) |
+| Rome Odunze | 2024 Rd 10 on your slot, 2025 kept | Round 6 (Year 3: 10-4) |
+| Sam LaPorta | FA 2025, was drafted Rd 25 same season | Round 21 (Year 2: 25-4) |
+| George Karlaftis | FA 2025, never drafted in 2025 | Round 15 (Year 2) |
 
 **Acceptance Criteria:**
-- [x] Fresh drafts use YOUR draft round (not historical drafts)
+- [x] Kept players use EARLIEST acquisition on slot (correct year counting)
+- [x] Fresh drafts use YOUR draft round
 - [x] Trades preserve original keeper history
 - [x] Same-season FA pickups inherit that season's draft round
-- [x] True FAs (never drafted that season) use Round 15
+- [x] True FAs use Round 15
 - [x] TypeScript compiles with no errors
 - [x] All existing tests pass (23/23)
 

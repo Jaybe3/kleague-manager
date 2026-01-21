@@ -39,14 +39,20 @@ export interface TeamRosterWithKeeperCosts {
 /**
  * Find the keeper base acquisition for cost calculation.
  *
- * KEY INSIGHT: When a player re-enters the draft pool (wasn't kept, wasn't traded),
- * they get a CLEAN SLATE. The new drafter's draft year/round becomes the keeper base.
+ * KEY CBS BEHAVIOR: When you KEEP a player, CBS creates a NEW "DRAFT" record
+ * each year at their keeper cost. So a kept player has MULTIPLE DRAFT records
+ * on the same slot across seasons.
  *
- * RULES:
- * 1. You DRAFTED the player → Use YOUR draft year/round as the keeper base
- * 2. You TRADED for the player → Follow trade chain back to original DRAFT (trades preserve history)
- * 3. You picked up player as FA in SAME season they were drafted → Inherit that draft round
- * 4. You picked up player as FA who was never drafted that season → True FA, use Round 15
+ * COMPLETE RULES:
+ * 1. KEEPER (same slot, multiple seasons): Find EARLIEST acquisition on this slot.
+ *    That's when the keeper clock started.
+ * 2. FRESH DRAFT (same slot, first appearance): Only ONE acquisition on this slot
+ *    in current season. Keeper clock starts now.
+ * 3. TRADE: Trades preserve history. Follow chain back to original DRAFT
+ *    (could be on different slot). Original drafter's year/round is keeper base.
+ * 4. FA (same season as a draft): If player was DRAFTED by someone else THE SAME
+ *    SEASON (then dropped), inherit that draft round.
+ * 5. TRUE FA: If player was never drafted that season by anyone, use Round 15.
  *
  * @param playerId - The player's ID
  * @param teamId - The team's ID (to find the current active acquisition)
@@ -72,19 +78,53 @@ async function findKeeperBaseAcquisition(playerId: string, teamId: string) {
     return null; // Player not active on this team
   }
 
-  // Step 2: If current acquisition is DRAFT, return it (your draft is the keeper base)
+  // Step 2: Get the team's SLOT ID
+  const slotId = currentAcquisition.team.slotId;
+
+  // Step 3: Find ALL acquisitions for this player on this SLOT (any season)
+  // This catches kept players who have DRAFT records across multiple seasons
+  const allSlotAcquisitions = await db.playerAcquisition.findMany({
+    where: {
+      playerId,
+      team: {
+        slotId: slotId,
+      },
+    },
+    include: {
+      player: true,
+      team: true,
+    },
+    orderBy: {
+      seasonYear: "asc", // Earliest first
+    },
+  });
+
+  // Step 4: If multiple acquisitions exist on this slot, return the EARLIEST
+  // This handles kept players - the keeper clock started with the first acquisition
+  if (allSlotAcquisitions.length > 1) {
+    return allSlotAcquisitions[0]; // Earliest acquisition on this slot
+  }
+
+  // Step 5: Only ONE acquisition on this slot (current one)
+  // Now determine if it's fresh draft, trade, or FA
+
+  // 5a: If DRAFT, it's a fresh draft - return this acquisition
   if (currentAcquisition.acquisitionType === "DRAFT") {
     return currentAcquisition;
   }
 
-  // Step 3: If current acquisition is TRADE, follow the trade chain back
+  // 5b: If TRADE, follow the trade chain back to original DRAFT
   if (currentAcquisition.acquisitionType === "TRADE") {
-    return await followTradeChainToOrigin(playerId, currentAcquisition.seasonYear);
+    const originalDraft = await findOriginalDraftForTrade(playerId);
+    if (originalDraft) {
+      return originalDraft;
+    }
+    // No draft found - treat as FA
+    return currentAcquisition;
   }
 
-  // Step 4: If current acquisition is FA, check if player was drafted SAME season
+  // 5c: If FA, check if player was DRAFTED same season by ANY team
   if (currentAcquisition.acquisitionType === "FA") {
-    // Look for a DRAFT in the SAME season (by any team)
     const sameSeasonDraft = await db.playerAcquisition.findFirst({
       where: {
         playerId,
@@ -97,7 +137,8 @@ async function findKeeperBaseAcquisition(playerId: string, teamId: string) {
     });
 
     if (sameSeasonDraft) {
-      // Player was drafted this season, then dropped - inherit that draft round
+      // Player was drafted this season by another team, then dropped
+      // Inherit that draft round
       return sameSeasonDraft;
     }
 
@@ -110,90 +151,28 @@ async function findKeeperBaseAcquisition(playerId: string, teamId: string) {
 }
 
 /**
- * Follow the trade chain back to find the original DRAFT or FA that started the keeper clock.
- * Trades preserve keeper history - the player keeps their original draft cost.
+ * Find the original DRAFT acquisition for a traded player.
+ * Trades preserve keeper history - look for the earliest DRAFT across all teams.
  *
  * @param playerId - The player's ID
- * @param seasonYear - The season to search within
  */
-async function followTradeChainToOrigin(playerId: string, seasonYear: number) {
-  // For trades, we need to find the original DRAFT in the trade chain
-  // The trade chain is within the same season - keeper cost follows the original draft
-
-  // First, check if player was drafted THIS season (by any team)
-  const sameSeasonDraft = await db.playerAcquisition.findFirst({
-    where: {
-      playerId,
-      acquisitionType: "DRAFT",
-      seasonYear,
-    },
-    include: {
-      player: true,
-    },
-  });
-
-  if (sameSeasonDraft) {
-    return sameSeasonDraft;
-  }
-
-  // No draft this season - check for FA this season (player entered as FA, then traded)
-  const sameSeasonFA = await db.playerAcquisition.findFirst({
-    where: {
-      playerId,
-      acquisitionType: "FA",
-      seasonYear,
-    },
-    orderBy: {
-      acquisitionDate: "asc",
-    },
-    include: {
-      player: true,
-    },
-  });
-
-  if (sameSeasonFA) {
-    // Player was FA this season, then traded - check if they were drafted in a PREVIOUS season
-    // and kept/traded through (continuous ownership chain)
-    const previousSeasonDraft = await db.playerAcquisition.findFirst({
-      where: {
-        playerId,
-        acquisitionType: "DRAFT",
-        seasonYear: { lt: seasonYear },
-      },
-      orderBy: {
-        seasonYear: "desc", // Get most recent draft before this season
-      },
-      include: {
-        player: true,
-      },
-    });
-
-    // Only inherit previous draft if there's a continuous chain (keeper or trade from previous season)
-    // For now, if traded and has previous draft, use that draft
-    // This handles kept players who were then traded mid-season
-    if (previousSeasonDraft) {
-      return previousSeasonDraft;
-    }
-
-    return sameSeasonFA;
-  }
-
-  // No acquisition found this season - look for previous season draft
-  // (player was kept from previous year and traded)
-  const previousDraft = await db.playerAcquisition.findFirst({
+async function findOriginalDraftForTrade(playerId: string) {
+  // For trades, find the EARLIEST DRAFT acquisition across ALL teams
+  // This is the original draft that started the keeper clock
+  const originalDraft = await db.playerAcquisition.findFirst({
     where: {
       playerId,
       acquisitionType: "DRAFT",
     },
     orderBy: {
-      seasonYear: "desc",
+      seasonYear: "asc",
     },
     include: {
       player: true,
     },
   });
 
-  return previousDraft;
+  return originalDraft;
 }
 
 /**

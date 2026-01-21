@@ -62,11 +62,19 @@ This project follows the Verified Development Framework. Every action must be tr
 - Round 10: Y2=R10, Y3=R6, Y4=R2, Y5=INELIGIBLE
 - Free Agent: Y2=R15, Y3=R11, Y4=R7, Y5=R3, Y6=INELIGIBLE
 
-**Keeper Base Acquisition Rule (Updated 2026-01-20):**
-- Fresh DRAFT → Use YOUR draft year/round (clean slate)
-- TRADE → Follow trade chain to original DRAFT (preserves history)
-- FA same season as a DRAFT → Inherit that season's draft round
-- FA never drafted that season → True FA, use Round 15
+**Keeper Base Acquisition Rule (FINAL - 2026-01-20):**
+
+CBS Behavior: When you KEEP a player, CBS creates a NEW "DRAFT" record each year.
+So kept players have MULTIPLE DRAFT records on the same slot across seasons.
+
+Algorithm:
+1. Find ALL acquisitions for player on this SLOT (any season)
+2. If multiple exist → Return EARLIEST (keeper clock started there)
+3. If only one (fresh):
+   - DRAFT → Use this draft (fresh start)
+   - TRADE → Find earliest DRAFT across ALL teams
+   - FA same season as a DRAFT → Inherit that draft round
+   - FA never drafted that season → True FA, use Round 15
 
 ---
 
