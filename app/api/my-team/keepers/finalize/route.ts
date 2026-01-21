@@ -11,22 +11,12 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get current season
-    const season = await db.season.findFirst({
-      where: { isActive: true },
-      orderBy: { year: "desc" },
-    });
-
-    if (!season) {
-      return NextResponse.json({ error: "No active season" }, { status: 404 });
-    }
-
-    // Find user's team
+    // Find user's most recent team
     const team = await db.team.findFirst({
       where: {
         managerId: session.user.id,
-        seasonYear: season.year,
       },
+      orderBy: { seasonYear: "desc" },
     });
 
     if (!team) {
@@ -37,7 +27,7 @@ export async function POST() {
     }
 
     // Finalize selections for next year
-    const targetYear = season.year + 1;
+    const targetYear = team.seasonYear + 1;
 
     // Get target season to check deadline
     const targetSeason = await db.season.findUnique({

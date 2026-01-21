@@ -704,107 +704,56 @@ When two players have the same keeper round:
 ---
 
 ### TASK-301: Draft Board with Draft Order Management
-**Status:** NOT STARTED
-**Priority:** HIGH
+**Status:** COMPLETED
+**Completed:** 2026-01-21
 **Depends On:** TASK-300
 
 **Objective:** Enable commissioner to set draft order for each season, and display the Draft Board sorted by draft position showing keepers and open slots.
 
-#### Problem
-- Draft order changes each year and cannot be imported from CBS
-- Current Draft Board sorts teams by slotId (permanent) instead of draftPosition (yearly)
-- Commissioner needs UI to manually set draft pick order for each season
-
-#### Features Required
-
-**1. Admin: Set Draft Order**
-- Location: `/admin/draft-order`
-- Commissioner selects a season year
-- Displays all 10 teams with up/down controls to set pick position (1-10)
-- Each position must have exactly one team (validation)
-- Save updates `Team.draftPosition` for that season's team records
-
-**2. Draft Board Display**
-- Sort teams by `draftPosition` (not slotId)
-- Columns: Pick 1, Pick 2, ... Pick 10 (in draft order)
-- Rows: Round 1, Round 2, ... Round N
-- Cells show:
-  - KEEPER: Player name, position, "(K)" indicator, amber background
-  - OPEN: Empty/available pick, light background
-
-#### Database
-- `Team.draftPosition` field already exists
-- No schema changes needed
-
-#### Files to Create/Modify
-
-**Create:**
+#### Files Created
 - `app/(dashboard)/admin/draft-order/page.tsx` - Admin UI for setting draft order
 - `app/api/admin/draft-order/route.ts` - GET/PUT endpoints for draft order
 
-**Modify:**
-- `app/api/draft-board/route.ts` - Sort teams by draftPosition instead of slotId
-- `components/draft-board/draft-board-grid.tsx` - Ensure column headers show draft position
+#### Files Modified
+- `app/api/draft-board/route.ts` - Sort teams by draftPosition, add season selector
+- `lib/draft-board/types.ts` - Added draftPosition to DraftBoardTeam, availableSeasons to response
+- `components/draft-board/draft-board-grid.tsx` - Column headers show "Pick X" with team name
+- `components/draft-board/draft-board-cell.tsx` - Empty cells show "—" instead of blank
+- `app/(dashboard)/draft-board/page.tsx` - Added season selector dropdown
 
-#### API Endpoints
+#### Bug Fixes During Implementation
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/api/admin/draft-order?year=2026` | Get teams with current draft positions for a season |
-| PUT | `/api/admin/draft-order` | Update draft positions for a season |
+**1. Season dropdown empty on /admin/draft-order**
+- Cause: API defaulted to latest Season record (2026) which had no teams
+- Fix: Query `Team.groupBy` to find seasons that actually have teams, default to latest with data
 
-**PUT Request Body:**
-```json
-{
-  "seasonYear": 2026,
-  "draftOrder": [
-    { "slotId": 5, "draftPosition": 1 },
-    { "slotId": 2, "draftPosition": 2 },
-    ...
-  ]
-}
-```
+**2. Draft board defaults to 2027 with no data**
+- Cause: Active season is 2026, targetYear = 2026 + 1 = 2027
+- Fix: Same approach - find seasons with teams for dropdown, default to latest with data
 
-#### UI Mockup - Admin Draft Order Page
+**3. Grid hidden when 0 keepers**
+- Cause: Conditional rendering showed message instead of grid structure
+- Fix: Always show grid with empty cells, only hide if no teams exist
 
-```
-Draft Order - 2026 Season
-[Season Dropdown: 2026 ▼]
-
-| Pick | Team Name              | [Move]   |
-|------|------------------------|----------|
-| 1    | Seal Team Nix          | [↓]      |
-| 2    | run ACHANE on her      | [↑][↓]   |
-| 3    | Woody and the Jets!    | [↑][↓]   |
-| ...  | ...                    | ...      |
-| 10   | Nabers Think I'm Selling| [↑]     |
-
-[Save Draft Order]
-```
-
-#### UI Mockup - Draft Board
-
-```
-Draft Board - 2026 Season
-
-       | Pick 1      | Pick 2      | Pick 3      | ... | Pick 10
--------|-------------|-------------|-------------|-----|------------
-Rd 1   | [OPEN]      | Player A(K) | [OPEN]      | ... | Zaire F(K)
-Rd 2   | [OPEN]      | [OPEN]      | Player B(K) | ... | [OPEN]
-Rd 3   | Player C(K) | [OPEN]      | [OPEN]      | ... | Davante A(K)
-...
-```
+**4. /my-team/keepers shows "No team found"**
+- Cause: All keepers API routes looked for team where `seasonYear = active season (2026)`, but user only had teams for 2023-2025
+- Fix: Changed all keepers API routes to find user's most recent team regardless of season
+- Files fixed:
+  - `app/api/my-team/keepers/route.ts` (GET and POST)
+  - `app/api/my-team/keepers/[playerId]/route.ts` (DELETE)
+  - `app/api/my-team/keepers/bump/route.ts` (GET and POST)
+  - `app/api/my-team/keepers/finalize/route.ts` (POST)
 
 #### Acceptance Criteria
 
-- [ ] Commissioner can access draft order admin page
-- [ ] Commissioner can set pick positions 1-10 for each team
-- [ ] Validation prevents duplicate positions
-- [ ] Draft order saves to database (Team.draftPosition)
-- [ ] Draft Board displays teams in draft order (not slot order)
-- [ ] Draft Board shows finalized keepers in correct cells
-- [ ] Draft Board shows open slots for non-keeper rounds
-- [ ] Non-commissioners cannot access admin draft order page (403)
+- [x] Commissioner can access draft order admin page
+- [x] Commissioner can set pick positions 1-10 for each team
+- [x] Validation prevents duplicate positions
+- [x] Draft order saves to database (Team.draftPosition)
+- [x] Draft Board displays teams in draft order (not slot order)
+- [x] Draft Board shows finalized keepers in correct cells
+- [x] Draft Board shows open slots for non-keeper rounds
+- [x] Non-commissioners cannot access admin draft order page (403)
 
 ---
 
@@ -1180,7 +1129,7 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-400 ✓
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-400 ✓
 
 **Production Data Status (2026-01-21):**
 - All 2023, 2024, 2025 draft and FA data imported
@@ -1195,3 +1144,18 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 ### TASK-201-REVISIT: Improve Bump UX
 **Priority:** Low
 **Note:** User feedback that current bump flow could be better. Consider redesigning the UX for resolving round conflicts.
+
+---
+
+### TASK-501a: Draft Board Horizontal Scroll UX
+**Priority:** Low
+**Note:** Draft board with 10 team columns requires horizontal scrolling on smaller screens. Consider:
+- Sticky first column (round numbers)
+- Better scroll indicators
+- Mobile-optimized view
+
+---
+
+### TASK-501b: Keepers Page UI Polish
+**Priority:** Low
+**Note:** Keepers selection page (/my-team/keepers) has some UI glitchiness. Needs review and polish for smoother user experience.

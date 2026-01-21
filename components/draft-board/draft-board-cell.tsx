@@ -10,7 +10,9 @@ export function DraftBoardCell({ keeper }: DraftBoardCellProps) {
   if (!keeper) {
     // Empty cell - available pick
     return (
-      <div className="h-full min-h-[60px] bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-700" />
+      <div className="h-full min-h-[60px] bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center">
+        <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>
+      </div>
     );
   }
 

@@ -23,7 +23,7 @@ export function DraftBoardGrid({ teams, keepers, totalRounds }: DraftBoardGridPr
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse min-w-[800px]">
-        {/* Header row with team names */}
+        {/* Header row with pick numbers and team names */}
         <thead>
           <tr>
             <th className="sticky left-0 z-10 bg-zinc-100 dark:bg-zinc-800 px-3 py-2 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-300 border-b border-r border-zinc-300 dark:border-zinc-600 w-16">
@@ -32,9 +32,12 @@ export function DraftBoardGrid({ teams, keepers, totalRounds }: DraftBoardGridPr
             {teams.map((team) => (
               <th
                 key={team.id}
-                className="px-2 py-2 text-center text-xs font-semibold text-zinc-700 dark:text-zinc-300 border-b border-zinc-300 dark:border-zinc-600 min-w-[100px]"
+                className="px-2 py-2 text-center border-b border-zinc-300 dark:border-zinc-600 min-w-[100px]"
               >
-                <div className="truncate" title={team.teamName}>
+                <div className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                  Pick {team.draftPosition}
+                </div>
+                <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate" title={team.teamName}>
                   {team.teamName}
                 </div>
               </th>

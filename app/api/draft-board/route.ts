@@ -14,7 +14,24 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const yearParam = searchParams.get("year");
 
-    // Default to next year (keeper selections are for upcoming season)
+    // Find all seasons that have teams (draft board year = team year + 1)
+    // Teams are stored by the year they played, draft board shows keepers for NEXT year
+    const seasonsWithTeams = await db.team.groupBy({
+      by: ["seasonYear"],
+      orderBy: { seasonYear: "desc" },
+    });
+
+    // Available draft board years = team years + 1
+    const availableSeasons = seasonsWithTeams.map((s) => s.seasonYear + 1);
+
+    if (availableSeasons.length === 0) {
+      return NextResponse.json(
+        { error: "No seasons with teams found. Import draft data first." },
+        { status: 404 }
+      );
+    }
+
+    // Determine target year
     let targetYear: number;
     if (yearParam) {
       targetYear = parseInt(yearParam, 10);
@@ -25,45 +42,52 @@ export async function GET(request: NextRequest) {
         );
       }
     } else {
-      // Get current active season and add 1
-      const activeSeason = await db.season.findFirst({
-        where: { isActive: true },
-        orderBy: { year: "desc" },
-      });
-      targetYear = activeSeason ? activeSeason.year + 1 : new Date().getFullYear() + 1;
+      // Default to the latest draft board year that has team data
+      targetYear = availableSeasons[0];
     }
 
-    // Get target season info
-    const season = await db.season.findUnique({
+    // Get target season info (may not exist if it's a future season)
+    let season = await db.season.findUnique({
       where: { year: targetYear },
     });
 
+    // If season doesn't exist in Season table, create a minimal object
+    // (Draft board can show even if Season record doesn't exist yet)
+    const previousYear = targetYear - 1;
     if (!season) {
-      return NextResponse.json(
-        { error: `Season ${targetYear} not found` },
-        { status: 404 }
-      );
+      // Use default values for future seasons
+      season = {
+        id: "future",
+        year: targetYear,
+        totalRounds: 28,
+        draftDate: new Date(),
+        keeperDeadline: new Date(),
+        isActive: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
     }
 
-    // Get all teams for this season
-    // Teams are stored per season, so we get teams from the previous season
-    // (the season where players were acquired)
-    const previousYear = targetYear - 1;
+    // Get all teams from the previous season (they hold next year's keepers)
     const teams = await db.team.findMany({
       where: { seasonYear: previousYear },
-      orderBy: { slotId: "asc" },
+      orderBy: { draftPosition: "asc" },
       select: {
         id: true,
         teamName: true,
         slotId: true,
+        draftPosition: true,
       },
     });
 
     if (teams.length === 0) {
-      return NextResponse.json(
-        { error: `No teams found for season ${previousYear}` },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        season: { year: targetYear, totalRounds: season.totalRounds },
+        teams: [],
+        keepers: [],
+        availableSeasons,
+        error: `No teams found for season ${previousYear}`,
+      });
     }
 
     // Get all finalized keeper selections for the target season
@@ -106,8 +130,10 @@ export async function GET(request: NextRequest) {
         id: t.id,
         teamName: t.teamName,
         slotId: t.slotId,
+        draftPosition: t.draftPosition,
       })),
       keepers,
+      availableSeasons,
     };
 
     return NextResponse.json(response);

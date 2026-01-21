@@ -8,7 +8,8 @@ export interface DraftBoardSeason {
 export interface DraftBoardTeam {
   id: string;
   teamName: string;
-  slotId: number; // 1-10, used for column ordering
+  slotId: number;
+  draftPosition: number; // 1-10, used for column ordering
 }
 
 export interface DraftBoardKeeper {
@@ -23,6 +24,7 @@ export interface DraftBoardResponse {
   season: DraftBoardSeason;
   teams: DraftBoardTeam[];
   keepers: DraftBoardKeeper[];
+  availableSeasons: number[];
 }
 
 // Helper type for grid rendering

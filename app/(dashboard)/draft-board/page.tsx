@@ -9,29 +9,54 @@ import { DraftBoardLegend } from "@/components/draft-board/draft-board-legend";
 export default function DraftBoardPage() {
   const router = useRouter();
   const [data, setData] = useState<DraftBoardResponse | null>(null);
+  const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch("/api/draft-board");
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Failed to load draft board");
-        }
-        const result: DraftBoardResponse = await res.json();
-        setData(result);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load data");
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (selectedYear !== null && data?.season.year !== selectedYear) {
+      fetchData(selectedYear);
+    }
+  }, [selectedYear]);
+
+  async function fetchData(year?: number) {
+    try {
+      setLoading(true);
+      const url = year ? `/api/draft-board?year=${year}` : "/api/draft-board";
+      const res = await fetch(url);
+
+      const result = await res.json();
+
+      // Always set available seasons if present
+      if (result.availableSeasons) {
+        setAvailableSeasons(result.availableSeasons);
+      }
+
+      if (!res.ok && !result.availableSeasons) {
+        throw new Error(result.error || "Failed to load draft board");
+      }
+
+      setData(result);
+      if (selectedYear === null && result.season?.year) {
+        setSelectedYear(result.season.year);
+      }
+      setError(result.error || null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleSeasonChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const year = parseInt(e.target.value, 10);
+    setSelectedYear(year);
+  }
 
   if (loading) {
     return (
@@ -96,13 +121,25 @@ export default function DraftBoardPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                Draft Board - {data.season.year} Season
+                Draft Board
               </h1>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {data.season.totalRounds} rounds | {data.teams.length} teams
               </p>
             </div>
             <div className="flex items-center gap-4">
+              <select
+                value={selectedYear ?? ""}
+                onChange={handleSeasonChange}
+                disabled={loading}
+                className="px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 text-sm"
+              >
+                {availableSeasons.map((year) => (
+                  <option key={year} value={year}>
+                    {year} Season
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={() => router.push("/my-team")}
                 className="px-4 py-2 text-sm bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-md transition-colors"
@@ -134,11 +171,11 @@ export default function DraftBoardPage() {
 
         {/* Draft Board Grid */}
         <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-4 md:p-6">
-          {data.keepers.length === 0 ? (
+          {data.teams.length === 0 ? (
             <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
-              <p className="text-lg font-medium">No finalized keepers yet</p>
+              <p className="text-lg font-medium">No teams found for this season</p>
               <p className="text-sm mt-2">
-                The board will populate as teams finalize their keeper selections.
+                Select a different season or import draft data first.
               </p>
             </div>
           ) : (

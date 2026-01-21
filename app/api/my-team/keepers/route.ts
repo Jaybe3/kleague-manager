@@ -15,22 +15,12 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get current season
-    const season = await db.season.findFirst({
-      where: { isActive: true },
-      orderBy: { year: "desc" },
-    });
-
-    if (!season) {
-      return NextResponse.json({ error: "No active season" }, { status: 404 });
-    }
-
-    // Find user's team
+    // Find user's most recent team (the roster they're selecting keepers from)
     const team = await db.team.findFirst({
       where: {
         managerId: session.user.id,
-        seasonYear: season.year,
       },
+      orderBy: { seasonYear: "desc" },
     });
 
     if (!team) {
@@ -40,8 +30,8 @@ export async function GET() {
       );
     }
 
-    // Get keeper selections for next year
-    const targetYear = season.year + 1;
+    // Keeper selections are for NEXT year (team's season + 1)
+    const targetYear = team.seasonYear + 1;
     const result = await getTeamKeeperSelections(team.id, targetYear);
 
     if (!result) {
@@ -79,22 +69,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get current season
-    const season = await db.season.findFirst({
-      where: { isActive: true },
-      orderBy: { year: "desc" },
-    });
-
-    if (!season) {
-      return NextResponse.json({ error: "No active season" }, { status: 404 });
-    }
-
-    // Find user's team
+    // Find user's most recent team
     const team = await db.team.findFirst({
       where: {
         managerId: session.user.id,
-        seasonYear: season.year,
       },
+      orderBy: { seasonYear: "desc" },
     });
 
     if (!team) {
@@ -105,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Select player for next year
-    const targetYear = season.year + 1;
+    const targetYear = team.seasonYear + 1;
 
     // Get target season to check deadline
     const targetSeason = await db.season.findUnique({
