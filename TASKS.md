@@ -1049,7 +1049,74 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓
+### TASK-501d: UI Foundation - Design System & Layout Shell
+**Status:** COMPLETED
+**Completed:** January 2026
+**Depends On:** TASK-400
+
+**Objective:** Install shadcn/ui, apply Forest dark theme, create responsive layout shell.
+
+#### Forest Theme Colors
+| Token | Value | Tailwind |
+|-------|-------|----------|
+| Background | #111827 | gray-900 |
+| Surface | #1f2937 | gray-800 |
+| Border | #374151 | gray-700 |
+| Text | #f9fafb | gray-50 |
+| Text Muted | #9ca3af | gray-400 |
+| Accent | #10b981 | emerald-500 |
+| Success | #22c55e | green-500 |
+| Warning | #f59e0b | amber-500 |
+| Error | #ef4444 | red-500 |
+
+#### Files Created
+| File | Purpose |
+|------|---------|
+| `components.json` | shadcn/ui configuration |
+| `lib/utils.ts` | cn() utility for className merging |
+| `components/ui/*` | 7 shadcn/ui components (button, card, table, select, input, badge, dropdown-menu) |
+| `components/layout/app-shell.tsx` | Main wrapper with sidebar + bottom nav |
+| `components/layout/sidebar.tsx` | Desktop nav (w-64, fixed left) |
+| `components/layout/bottom-nav.tsx` | Mobile nav (fixed bottom) |
+| `components/layout/page-header.tsx` | Reusable page header |
+| `components/layout/index.ts` | Barrel exports |
+| `app/(dashboard)/layout.tsx` | Wrap dashboard pages in AppShell |
+
+#### Files Modified
+| File | Change |
+|------|--------|
+| `app/globals.css` | Forest dark theme CSS variables |
+| `app/layout.tsx` | Title: "KLeague Manager" |
+| `package.json` | shadcn dependencies added |
+
+#### Navigation Structure
+| Label | Path | Access |
+|-------|------|--------|
+| My Team | /my-team | All users |
+| Keepers | /my-team/keepers | All users |
+| Draft Board | /draft-board | All users |
+| Rules | /rules | All users |
+| Admin | /admin/import | Commissioner only |
+
+#### Responsive Behavior
+- < 768px: Bottom nav visible, sidebar hidden
+- ≥ 768px: Sidebar visible, bottom nav hidden
+
+#### Acceptance Criteria
+- [x] shadcn/ui installed and configured
+- [x] Forest dark theme applied globally
+- [x] Sidebar visible on desktop (≥768px)
+- [x] Bottom nav visible on mobile (<768px)
+- [x] Active nav highlighted with emerald accent
+- [x] Admin link only visible for commissioners
+- [x] All existing pages still functional
+- [x] No TypeScript or console errors
+
+**Completion Note:** Forest theme applied, responsive layout shell working. Pre-existing slow load on Keepers/My Team pages noted for future optimization (database query issue, not UI-related).
+
+---
+
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓
 
 **Production Data Status (2026-01-21):**
 - All 2023, 2024, 2025 draft and FA data imported
