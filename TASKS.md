@@ -436,175 +436,94 @@ When you KEEP a player, CBS creates a NEW "DRAFT" record each year at their keep
 ---
 
 ### TASK-104: Team Identity System (Slots)
-**Status:** NOT STARTED
-**Priority:** CRITICAL - Blocks all imports
+**Status:** COMPLETED
+**Completed:** Implemented during development, verified 2026-01-21
 **Depends On:** TASK-001
 
 **Objective:** Replace current broken team identity (draft position as permanentId) with proper slot-based system that survives team renames and CBS retroactive name changes.
 
-**Problem:**
-- Current `permanentId` is actually draft position, which changes yearly
+**Problem Solved:**
 - CBS retroactively updates historical data with current team names
 - Example: "Discount Belichick" (2023-2024) now shows as "Seal Team Nix" in historical FA data
 - Keeper logic must follow the SLOT (seat at table), not the team name
 
-**Database Changes:**
+**Implementation:**
+- `TeamSlot` table exists with 10 permanent records (slots 1-10)
+- `TeamAlias` table exists with 16 name mappings covering 2023-2025
+- `Team.slotId` references `TeamSlot.id` for permanent identity
+- `getSlotIdFromTeamName()` function in `lib/importers/team-mapper.ts` handles lookups
 
-```prisma
-model TeamSlot {
-  id        Int      @id                    // 1-10, permanent league positions
-  createdAt DateTime @default(now()) @map("created_at")
-  
-  aliases   TeamAlias[]
-  teams     Team[]
-  
-  @@map("team_slots")
-}
-
-model TeamAlias {
-  id        String   @id @default(cuid())
-  slotId    Int      @map("slot_id")
-  teamName  String   @map("team_name")
-  validFrom Int      @map("valid_from")     // Year this name started (e.g., 2023)
-  validTo   Int?     @map("valid_to")       // Year this name ended (null = current)
-  createdAt DateTime @default(now()) @map("created_at")
-  
-  slot      TeamSlot @relation(fields: [slotId], references: [id])
-  
-  @@unique([slotId, teamName])
-  @@map("team_aliases")
-}
-```
-
-**Team.permanentId:** Change to reference TeamSlot.id (true permanent ID)
-
-**Seed Data (from commissioner-provided mapping):**
-
-| Slot | 2023 | 2024 | 2025 |
-|------|------|------|------|
-| 1 | Gatordontplay | Gatordontplay | Gatordontplayanymorebchesucked |
-| 2 | Box of Rocks | Box of Rocks | run ACHANE on her |
-| 3 | Woody and the Jets! | Woody and the Jets! | Woody and the Jets! |
-| 4 | Go Go Garrett | Go Go Garrett | The Better Business Burrow |
-| 5 | Discount Belichick | Discount Belichick | Seal Team Nix |
-| 6 | Team 4 | Team 4 | Team 4 |
-| 7 | The Bushwhackers | The Bushwhackers | The Bushwhackers |
-| 8 | Sweet Chin Music | Sweet Chin Music | Sweet Chin Music |
-| 9 | Fields of Dreams | Fields of Dreams | Fields of Dreams |
-| 10 | Ridley Me This | Let Bijans be Bijans | Nabers Think I'm Selling Dope |
-
-**Helper Function:**
-```typescript
-// Look up slot from team name + year
-function getSlotIdFromTeamName(teamName: string, seasonYear: number): number | null
-```
-
-**Files to Modify:**
-- `prisma/schema.prisma` - Add TeamSlot, TeamAlias models
-- `lib/importers/team-mapper.ts` - Replace hardcoded mapping with DB lookup
-- Migration script to seed slots and aliases
+**Current Team Aliases:**
+| Slot | Name | Valid Years |
+|------|------|-------------|
+| 1 | Gatordontplay | 2023-2024 |
+| 1 | Gatordontplayanymorebchesucked | 2025+ |
+| 2 | Box of Rocks | 2023-2024 |
+| 2 | run ACHANE on her | 2025+ |
+| 3 | Woody and the Jets! | 2023+ |
+| 4 | Go Go Garrett | 2023-2024 |
+| 4 | The Better Business Burrow | 2025+ |
+| 5 | Discount Belichick | 2023-2024 |
+| 5 | Seal Team Nix | 2025+ |
+| 6 | Team 4 | 2023+ |
+| 7 | The Bushwhackers | 2023+ |
+| 8 | Sweet Chin Music | 2023+ |
+| 9 | Fields of Dreams | 2023+ |
+| 10 | Ridley Me This | 2023 |
+| 10 | Let Bijans be Bijans | 2024 |
+| 10 | Nabers Think I'm Selling Dope | 2025+ |
 
 **Acceptance Criteria:**
-- [ ] TeamSlot table has 10 permanent records
-- [ ] TeamAlias table has all known name mappings
-- [ ] `getSlotIdFromTeamName("Seal Team Nix", 2023)` returns 5 (CBS retroactive rename)
-- [ ] `getSlotIdFromTeamName("Discount Belichick", 2023)` returns 5
-- [ ] Team.permanentId correctly references TeamSlot.id
+- [x] TeamSlot table has 10 permanent records
+- [x] TeamAlias table has all known name mappings (16 aliases)
+- [x] `getSlotIdFromTeamName("Seal Team Nix", 2023)` returns 5 (CBS retroactive rename)
+- [x] `getSlotIdFromTeamName("Discount Belichick", 2023)` returns 5
+- [x] Team.slotId correctly references TeamSlot.id
 
 ---
 
 ### TASK-105: Flexible Data Import Parser
-**Status:** NOT STARTED
-**Priority:** CRITICAL - Current import is broken
+**Status:** COMPLETED
+**Completed:** Implemented during development, verified 2026-01-21
 **Depends On:** TASK-104
 
 **Objective:** Replace hardcoded Excel sheet name validation with flexible import that accepts copy/paste text or any Excel file.
 
-**Current Problems:**
-- Hardcoded sheet names: `2024_Draft_team`, `2024_Transactions`
-- Cannot import 2023 data or any other year
-- User cannot export from CBS as Excel/CSV, only copy/paste
+**Implementation:**
+- Text parser (`lib/importers/text-parser.ts`) handles copy/paste from CBS
+- `parseDraftText()` parses draft picks with "Round N" headers
+- `parseTransactionText()` parses FA signings, drops, and trades
+- `parsePlayersColumn()` handles multi-player rows (Signed + Dropped in one line)
+- `stripEmojis()` removes CBS lock/box emojis that break regex matching
+- Continuation line joining for CBS's multi-line transaction format
 
-**New Import Behavior:**
+**Files Created/Modified:**
+- `lib/importers/text-parser.ts` - Complete text parser for copy/paste
+- `lib/importers/draft-importer.ts` - Uses text parser
+- `lib/importers/transaction-importer.ts` - Uses text parser, handles DROP/FA/TRADE
+- `lib/importers/index.ts` - Entry points: `importDraftFromText()`, `importFAFromText()`
+- `app/api/admin/import/route.ts` - Accepts text input
+- `app/(dashboard)/admin/import/page.tsx` - Text paste UI
 
-1. **Input Options:**
-   - Copy/paste tab-separated text (primary method)
-   - Excel file → read FIRST sheet, ignore sheet name
-
-2. **User Specifies:**
-   - Import type: Draft | FA Transactions
-   - Season year (required)
-
-3. **Season Configuration:**
-   - 2023, 2024: `totalRounds = 27`
-   - 2025+: `totalRounds = 28`
-
-4. **Draft Format Parsing:**
-   ```
-   Round 1
-   Pick	Team	Player	Elig	Elapsed Time	Total Fpts	Active Fpts
-   1	Go Go Garrett	Patrick Mahomes QB • KC 			826.0	652.0
-   ...
-   Round 2
-   ...
-   ```
-   - Detect "Round N" headers
-   - Parse player: `Name Position • NFLTeam`
-   - Map team name → slot using TASK-104 system
-
-5. **FA Transaction Format Parsing:**
-   ```
-   Date	Team	Players	Effective
-   12/30/23 1:42 AM ET	Sweet Chin Music	Jonathan Owens DB • CHI - Signed for $0	17
-   ```
-   - Parse date, team, action
-   - Extract player name, position from action text
-   - Filter for "Signed" transactions only (ignore Dropped, Activated, Traded)
-   - Map team name → slot using TASK-104 system
-
-**Files to Create/Modify:**
-- `lib/importers/text-parser.ts` - New parser for copy/paste text
-- `lib/importers/draft-importer.ts` - Use new parser
-- `lib/importers/transaction-importer.ts` - Use new parser
-- `lib/importers/index.ts` - Update orchestrator
-- `app/api/admin/import/route.ts` - Accept text input
-- `app/(dashboard)/admin/import/page.tsx` - Add text paste option
+**Data Successfully Imported:**
+- 2023 season: Draft + FA transactions
+- 2024 season: Draft + FA transactions
+- 2025 season: Draft + FA transactions
+- 664 players, 30 teams, ~1,521 acquisitions
 
 **Acceptance Criteria:**
-- [ ] Can paste draft text, specify year → imports correctly
-- [ ] Can paste FA text, specify year → imports correctly
-- [ ] Excel upload still works (reads first sheet)
-- [ ] No validation on sheet names
-- [ ] Team names map to slots correctly via TASK-104
-- [ ] Season created with correct totalRounds (27 or 28)
+- [x] Can paste draft text, specify year → imports correctly
+- [x] Can paste FA text, specify year → imports correctly
+- [x] Excel upload still works (reads first sheet)
+- [x] No validation on sheet names
+- [x] Team names map to slots correctly via TASK-104
+- [x] Season created with correct totalRounds (27 for 2023-2024, 28 for 2025+)
 
 ---
 
 ### TASK-106: Admin Team Management UI
-**Status:** NOT STARTED
-**Priority:** MEDIUM
-**Depends On:** TASK-104
-
-**Objective:** Allow commissioner to view and manage team slot aliases via Admin UI.
-
-**Features:**
-1. **View All Slots:** Display 10 slots with their name history
-2. **Add Alias:** When team renames, add new alias with year
-3. **Edit Alias:** Modify year ranges if needed
-4. **Validation:** Prevent duplicate names for same slot+year
-
-**UI Location:** `/admin/teams`
-
-**Files to Create:**
-- `app/(dashboard)/admin/teams/page.tsx` - Team management page
-- `app/api/admin/teams/route.ts` - CRUD for team aliases
-- `components/admin/team-slot-card.tsx` - Display component
-
-**Acceptance Criteria:**
-- [ ] Commissioner can view all 10 slots and their aliases
-- [ ] Commissioner can add new team name alias
-- [ ] Commissioner can edit alias year ranges
-- [ ] Non-commissioners cannot access (403)
+**Status:** NOT NEEDED
+**Note:** Slots system (TASK-104) solved the team identity problem. Manual alias management not required - can be handled via database when needed.
 
 ---
 
@@ -784,25 +703,300 @@ When two players have the same keeper round:
 
 ---
 
-### TASK-301: Draft Board Filtering & Export
+### TASK-301: Draft Board with Draft Order Management
 **Status:** NOT STARTED
+**Priority:** HIGH
 **Depends On:** TASK-300
 
-**Objective:** Add filtering and export capabilities to draft board.
+**Objective:** Enable commissioner to set draft order for each season, and display the Draft Board sorted by draft position showing keepers and open slots.
 
-**Planned Features:**
-- Season year selector dropdown
-- Filter by position
-- Export to CSV
-- Print-friendly view
+#### Problem
+- Draft order changes each year and cannot be imported from CBS
+- Current Draft Board sorts teams by slotId (permanent) instead of draftPosition (yearly)
+- Commissioner needs UI to manually set draft pick order for each season
+
+#### Features Required
+
+**1. Admin: Set Draft Order**
+- Location: `/admin/draft-order`
+- Commissioner selects a season year
+- Displays all 10 teams with up/down controls to set pick position (1-10)
+- Each position must have exactly one team (validation)
+- Save updates `Team.draftPosition` for that season's team records
+
+**2. Draft Board Display**
+- Sort teams by `draftPosition` (not slotId)
+- Columns: Pick 1, Pick 2, ... Pick 10 (in draft order)
+- Rows: Round 1, Round 2, ... Round N
+- Cells show:
+  - KEEPER: Player name, position, "(K)" indicator, amber background
+  - OPEN: Empty/available pick, light background
+
+#### Database
+- `Team.draftPosition` field already exists
+- No schema changes needed
+
+#### Files to Create/Modify
+
+**Create:**
+- `app/(dashboard)/admin/draft-order/page.tsx` - Admin UI for setting draft order
+- `app/api/admin/draft-order/route.ts` - GET/PUT endpoints for draft order
+
+**Modify:**
+- `app/api/draft-board/route.ts` - Sort teams by draftPosition instead of slotId
+- `components/draft-board/draft-board-grid.tsx` - Ensure column headers show draft position
+
+#### API Endpoints
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/admin/draft-order?year=2026` | Get teams with current draft positions for a season |
+| PUT | `/api/admin/draft-order` | Update draft positions for a season |
+
+**PUT Request Body:**
+```json
+{
+  "seasonYear": 2026,
+  "draftOrder": [
+    { "slotId": 5, "draftPosition": 1 },
+    { "slotId": 2, "draftPosition": 2 },
+    ...
+  ]
+}
+```
+
+#### UI Mockup - Admin Draft Order Page
+
+```
+Draft Order - 2026 Season
+[Season Dropdown: 2026 ▼]
+
+| Pick | Team Name              | [Move]   |
+|------|------------------------|----------|
+| 1    | Seal Team Nix          | [↓]      |
+| 2    | run ACHANE on her      | [↑][↓]   |
+| 3    | Woody and the Jets!    | [↑][↓]   |
+| ...  | ...                    | ...      |
+| 10   | Nabers Think I'm Selling| [↑]     |
+
+[Save Draft Order]
+```
+
+#### UI Mockup - Draft Board
+
+```
+Draft Board - 2026 Season
+
+       | Pick 1      | Pick 2      | Pick 3      | ... | Pick 10
+-------|-------------|-------------|-------------|-----|------------
+Rd 1   | [OPEN]      | Player A(K) | [OPEN]      | ... | Zaire F(K)
+Rd 2   | [OPEN]      | [OPEN]      | Player B(K) | ... | [OPEN]
+Rd 3   | Player C(K) | [OPEN]      | [OPEN]      | ... | Davante A(K)
+...
+```
+
+#### Acceptance Criteria
+
+- [ ] Commissioner can access draft order admin page
+- [ ] Commissioner can set pick positions 1-10 for each team
+- [ ] Validation prevents duplicate positions
+- [ ] Draft order saves to database (Team.draftPosition)
+- [ ] Draft Board displays teams in draft order (not slot order)
+- [ ] Draft Board shows finalized keepers in correct cells
+- [ ] Draft Board shows open slots for non-keeper rounds
+- [ ] Non-commissioners cannot access admin draft order page (403)
+
+---
+
+### TASK-302: Admin Keeper Override
+**Status:** NOT STARTED
+**Priority:** MEDIUM
+**Depends On:** TASK-103-FINAL
+
+**Objective:** Allow commissioner to override calculated keeper costs for special circumstances (trade agreements, league exceptions, etc.)
+
+#### Use Case
+- Jayden Daniels is calculated as INELIGIBLE for 2026
+- League agreed he can be kept at Round 1 due to trade agreement
+- Commissioner overrides: Keep at Round 1 for 2026
+- 2027: Normal rules resume → INELIGIBLE (no override)
+
+#### Database Changes
+
+Add new model to `prisma/schema.prisma`:
+```prisma
+model KeeperOverride {
+  id          String   @id @default(cuid())
+  playerId    String   @map("player_id")
+  teamId      String   @map("team_id")
+  seasonYear  Int      @map("season_year")
+  overrideRound Int    @map("override_round")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  player Player @relation(fields: [playerId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  @@unique([playerId, teamId, seasonYear])
+  @@map("keeper_overrides")
+}
+```
+
+Also add relations to Player and Team models:
+- Player: `keeperOverrides KeeperOverride[]`
+- Team: `keeperOverrides KeeperOverride[]`
+
+#### Features Required
+
+**1. Admin UI: Manage Keeper Overrides**
+- Location: `/admin/keeper-overrides`
+- Commissioner can:
+  - View all current overrides
+  - Add new override (select team → select player → set round → set season)
+  - Remove override
+- Search/filter by team or player name
+
+**2. Keeper Calculation Integration**
+- Modify `lib/keeper/service.ts` to check for overrides
+- If override exists for player+team+season → use override round instead of calculated
+- Override makes player eligible regardless of calculated status
+
+**3. Override Visibility**
+- Commissioner sees indicator (e.g., "⚙️" icon or "Override" badge) next to overridden players
+- Regular users see normal keeper cost display (no indicator)
+- Override is invisible to non-commissioners
+
+#### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `app/(dashboard)/admin/keeper-overrides/page.tsx` | Admin UI for managing overrides |
+| `app/api/admin/keeper-overrides/route.ts` | GET (list), POST (create) endpoints |
+| `app/api/admin/keeper-overrides/[id]/route.ts` | DELETE endpoint |
+
+#### Files to Modify
+
+| File | Change |
+|------|--------|
+| `prisma/schema.prisma` | Add KeeperOverride model |
+| `lib/keeper/service.ts` | Check for overrides in keeper cost calculation |
+| `app/(dashboard)/my-team/page.tsx` | Show override indicator for commissioner |
+| `components/roster/roster-table.tsx` | Display override indicator conditionally |
+
+#### API Endpoints
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/admin/keeper-overrides?year=2026` | List all overrides for a season |
+| POST | `/api/admin/keeper-overrides` | Create new override |
+| DELETE | `/api/admin/keeper-overrides/[id]` | Remove override |
+
+**POST Request Body:**
+```json
+{
+  "playerId": "abc123",
+  "teamId": "xyz789",
+  "seasonYear": 2026,
+  "overrideRound": 1
+}
+```
+
+#### Keeper Calculation Logic Change
+
+In `getPlayerKeeperCost()`:
+
+```
+1. Check if KeeperOverride exists for (playerId, teamId, targetYear)
+2. If YES:
+   - Return overrideRound as keeperCost
+   - Mark isEligible = true
+   - Add flag: isOverride = true (for UI)
+3. If NO:
+   - Continue with normal calculation
+```
+
+#### UI Mockup - Admin Override Page
+
+```
+Keeper Overrides - 2026 Season
+[Season Dropdown: 2026 ▼]
+
+Current Overrides:
+| Player         | Team                    | Override Round | [Action] |
+|----------------|-------------------------|----------------|----------|
+| Jayden Daniels | Nabers Think I'm Selling| Round 1        | [Remove] |
+
+Add New Override:
+[Select Team ▼] [Select Player ▼] [Round: __] [Add Override]
+```
+
+#### UI Mockup - My Team (Commissioner View)
+
+```
+| Player         | Pos | Acquisition  | Keeper Cost   | Status   |
+|----------------|-----|--------------|---------------|----------|
+| Jayden Daniels | QB  | Draft Rd 1   | Round 1 ⚙️    | Eligible |
+```
+
+The ⚙️ icon (or similar indicator) only visible to commissioner.
+
+#### Acceptance Criteria
+
+- [ ] KeeperOverride table exists in database
+- [ ] Commissioner can view all overrides for a season
+- [ ] Commissioner can add override for any player on any team
+- [ ] Commissioner can remove override
+- [ ] Override round is used instead of calculated cost
+- [ ] Overridden players show as eligible
+- [ ] Commissioner sees override indicator on roster
+- [ ] Non-commissioners do NOT see override indicator
+- [ ] Override only applies to specified season
+- [ ] Non-commissioners cannot access admin override page (403)
 
 ---
 
 ## Phase 4: Admin Features
 
 ### TASK-400: Manual Trade Entry
+**Status:** COMPLETED
+**Completed:** Verified 2026-01-21
+
+**Objective:** Allow commissioner to enter trades manually or import them from CBS transaction data.
+
+**Implementation:**
+- Trade parsing included in `lib/importers/text-parser.ts` - parses "Traded from [Team]" format
+- Trade handling in `lib/importers/transaction-importer.ts` - creates TRADE acquisitions
+- `enterTrade()` function in `lib/importers/index.ts` for manual entry
+- Trade API endpoint at `app/api/admin/trade/route.ts`
+
+**Features:**
+- Preserves original draft round from trade chain
+- Tracks source team via `tradedFromTeamId` field
+- Closes source acquisition when creating trade record
+- Idempotent import (safe to reimport)
+
+**Data Imported:**
+- 8 TRADE records successfully imported to production
+
+**Acceptance Criteria:**
+- [x] Trades parsed from CBS transaction text
+- [x] Trade preserves original draft round
+- [x] Trade tracks source team
+- [x] Manual trade entry API works
+
+---
+
 ### TASK-401: Bulk Data Import
+**Status:** NOT NEEDED - Covered by TASK-105
+
+The flexible text parser in TASK-105 handles bulk import of draft and transaction data via copy/paste from CBS. No separate bulk import feature required.
+
+---
+
 ### TASK-402: Audit Log & History
+**Status:** NOT NEEDED - Removed from scope
+
+Removed from scope per product owner decision. The `audit_logs` table exists in schema but is not actively used. May be implemented in future if needed.
 
 ---
 
@@ -814,23 +1008,13 @@ When two players have the same keeper round:
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-400 ✓
 
-**Parser Fixes (2026-01-19) - NOT COMMITTED:**
-Parser issues identified and fixed during FA import testing:
-1. ✓ Multi-player rows - CBS combines "Signed" + "Dropped" in one row (parsePlayersColumn)
-2. ✓ Emoji stripping - Lock/box emojis (🔒 ⬛) break regex matching (stripEmojis)
-3. ✓ Duplicate detection - Timezone issue with date parsing (use date range matching)
-4. ✓ Trade parsing - "Traded from [Team]" format (regex + importer updates)
-
-Files modified (uncommitted):
-- `lib/importers/types.ts` - Added tradedFromTeam to ParsedTransaction
-- `lib/importers/text-parser.ts` - Multi-player parsing, emoji stripping, trade regex
-- `lib/importers/transaction-importer.ts` - Duplicate detection fix, TRADE handling
-
-**Blocker:** Database has broken data from partial imports. Need clean reimport of ALL teams.
-**Next Step:** Clean reimport (delete all 2025 data, reimport draft + FA for all teams)
-**Session Status:** Parser fixes complete, awaiting clean reimport - 2026-01-19
+**Production Data Status (2026-01-21):**
+- All 2023, 2024, 2025 draft and FA data imported
+- 664 players, 30 teams (10 per season), ~1,521 acquisitions
+- 8 TRADE records
+- Keeper cost calculation verified working correctly
 
 ---
 
