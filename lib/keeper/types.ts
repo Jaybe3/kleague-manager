@@ -55,6 +55,9 @@ export interface KeeperCalculationResult {
 
   /** The cost reduction applied (0 for years 1-2, multiples of 4 for years 3+) */
   costReduction: number;
+
+  /** Whether this cost is from a commissioner override (only visible to commissioner) */
+  isOverride?: boolean;
 }
 
 // ============= Player Keeper Info (for DB integration) =============

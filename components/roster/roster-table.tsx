@@ -8,6 +8,7 @@ type SortDirection = "asc" | "desc";
 
 interface RosterTableProps {
   players: PlayerKeeperCostResult[];
+  isCommissioner?: boolean;
 }
 
 const POSITION_ORDER: Record<string, number> = {
@@ -19,7 +20,7 @@ const POSITION_ORDER: Record<string, number> = {
   DEF: 6,
 };
 
-export function RosterTable({ players }: RosterTableProps) {
+export function RosterTable({ players, isCommissioner = false }: RosterTableProps) {
   const [sortField, setSortField] = useState<SortField>("position");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [positionFilter, setPositionFilter] = useState<string>("all");
@@ -241,6 +242,9 @@ export function RosterTable({ players }: RosterTableProps) {
                     {p.calculation.isEligible ? (
                       <span className="font-semibold text-zinc-900 dark:text-zinc-100">
                         Round {p.calculation.keeperRound}
+                        {isCommissioner && p.calculation.isOverride && (
+                          <span className="ml-1" title="Commissioner Override">⚙️</span>
+                        )}
                       </span>
                     ) : (
                       <span className="text-zinc-400 dark:text-zinc-500">—</span>

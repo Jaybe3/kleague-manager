@@ -199,6 +199,49 @@ export async function getPlayerKeeperCost(
     ? "FA" // If trade chain couldn't find draft, treat as FA
     : keeperBaseAcquisition.acquisitionType as "DRAFT" | "FA";
 
+  // Check for commissioner override BEFORE calculating
+  const override = await db.keeperOverride.findUnique({
+    where: {
+      playerId_teamId_seasonYear: {
+        playerId,
+        teamId,
+        seasonYear: targetYear,
+      },
+    },
+  });
+
+  // If override exists, use override round instead of calculated cost
+  if (override) {
+    return {
+      player: {
+        id: keeperBaseAcquisition.player.id,
+        firstName: keeperBaseAcquisition.player.firstName,
+        lastName: keeperBaseAcquisition.player.lastName,
+        position: keeperBaseAcquisition.player.position,
+        playerMatchKey: keeperBaseAcquisition.player.playerMatchKey,
+      },
+      acquisition: {
+        type: acquisitionType,
+        year: keeperBaseAcquisition.seasonYear,
+        draftRound: keeperBaseAcquisition.draftRound,
+        draftPick: keeperBaseAcquisition.draftPick,
+      },
+      calculation: {
+        targetYear,
+        acquisitionType,
+        originalDraftRound: keeperBaseAcquisition.draftRound,
+        acquisitionYear: keeperBaseAcquisition.seasonYear,
+        yearsKept: targetYear - keeperBaseAcquisition.seasonYear,
+        keeperRound: override.overrideRound,
+        isEligible: true, // Override always makes player eligible
+        baseRound: keeperBaseAcquisition.draftRound ?? 15,
+        costReduction: 0, // Not applicable for overrides
+        isOverride: true,
+      },
+    };
+  }
+
+  // No override - calculate normally
   // Build calculation input
   const input: KeeperCalculationInput = {
     acquisitionType,

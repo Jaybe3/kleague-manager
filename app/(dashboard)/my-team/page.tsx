@@ -72,7 +72,7 @@ export default async function MyTeamPage() {
 
           {/* Roster Table */}
           {roster && roster.players.length > 0 ? (
-            <RosterTable players={roster.players} />
+            <RosterTable players={roster.players} isCommissioner={session.user.isCommissioner} />
           ) : (
             <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
               <p>No players on roster yet.</p>

@@ -62,10 +62,11 @@ model Team {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  slot         TeamSlot            @relation(fields: [slotId], references: [id])
-  manager      User?               @relation(fields: [managerId], references: [id])
-  acquisitions PlayerAcquisition[]
-  keepers      KeeperSelection[]
+  slot            TeamSlot            @relation(fields: [slotId], references: [id])
+  manager         User?               @relation(fields: [managerId], references: [id])
+  acquisitions    PlayerAcquisition[]
+  keepers         KeeperSelection[]
+  keeperOverrides KeeperOverride[]
 
   @@unique([slotId, seasonYear])
   @@map("teams")
@@ -82,8 +83,9 @@ model Player {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  acquisitions PlayerAcquisition[]
-  keepers      KeeperSelection[]
+  acquisitions    PlayerAcquisition[]
+  keepers         KeeperSelection[]
+  keeperOverrides KeeperOverride[]
 
   @@map("players")
 }
@@ -148,6 +150,24 @@ model KeeperSelection {
   @@unique([teamId, seasonYear, keeperRound])
   @@unique([teamId, playerId, seasonYear])
   @@map("keeper_selections")
+}
+
+// ============= KEEPER OVERRIDES =============
+
+model KeeperOverride {
+  id            String   @id @default(cuid())
+  playerId      String   @map("player_id")
+  teamId        String   @map("team_id")
+  seasonYear    Int      @map("season_year")
+  overrideRound Int      @map("override_round")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  player Player @relation(fields: [playerId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  @@unique([playerId, teamId, seasonYear])
+  @@map("keeper_overrides")
 }
 
 // ============= AUDIT LOG =============

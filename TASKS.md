@@ -758,149 +758,47 @@ When two players have the same keeper round:
 ---
 
 ### TASK-302: Admin Keeper Override
-**Status:** NOT STARTED
-**Priority:** MEDIUM
+**Status:** COMPLETED
+**Completed:** 2026-01-21
 **Depends On:** TASK-103-FINAL
 
 **Objective:** Allow commissioner to override calculated keeper costs for special circumstances (trade agreements, league exceptions, etc.)
 
-#### Use Case
-- Jayden Daniels is calculated as INELIGIBLE for 2026
-- League agreed he can be kept at Round 1 due to trade agreement
-- Commissioner overrides: Keep at Round 1 for 2026
-- 2027: Normal rules resume → INELIGIBLE (no override)
+#### Files Created
+- `app/(dashboard)/admin/keeper-overrides/page.tsx` - Admin UI for managing overrides
+- `app/api/admin/keeper-overrides/route.ts` - GET (list), POST (create) endpoints
+- `app/api/admin/keeper-overrides/[id]/route.ts` - DELETE endpoint
 
-#### Database Changes
+#### Files Modified
+- `prisma/schema.prisma` - Added KeeperOverride model with relations to Player and Team
+- `lib/keeper/types.ts` - Added `isOverride?: boolean` to KeeperCalculationResult
+- `lib/keeper/service.ts` - Check for overrides before calculating keeper cost
+- `app/(dashboard)/my-team/page.tsx` - Pass isCommissioner to RosterTable
+- `components/roster/roster-table.tsx` - Show ⚙️ indicator for overridden players (commissioner only)
 
-Add new model to `prisma/schema.prisma`:
-```prisma
-model KeeperOverride {
-  id          String   @id @default(cuid())
-  playerId    String   @map("player_id")
-  teamId      String   @map("team_id")
-  seasonYear  Int      @map("season_year")
-  overrideRound Int    @map("override_round")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+#### Bug Fixes During Implementation
 
-  player Player @relation(fields: [playerId], references: [id])
-  team   Team   @relation(fields: [teamId], references: [id])
+**1. API error handling for missing data**
+- Cause: API returned 404 without `availableSeasons` when no data found
+- Fix: Always return `availableSeasons`, `teams`, `overrides` arrays (even if empty)
+- Return 200 OK with error message in body instead of 404 for graceful handling
 
-  @@unique([playerId, teamId, seasonYear])
-  @@map("keeper_overrides")
-}
-```
-
-Also add relations to Player and Team models:
-- Player: `keeperOverrides KeeperOverride[]`
-- Team: `keeperOverrides KeeperOverride[]`
-
-#### Features Required
-
-**1. Admin UI: Manage Keeper Overrides**
-- Location: `/admin/keeper-overrides`
-- Commissioner can:
-  - View all current overrides
-  - Add new override (select team → select player → set round → set season)
-  - Remove override
-- Search/filter by team or player name
-
-**2. Keeper Calculation Integration**
-- Modify `lib/keeper/service.ts` to check for overrides
-- If override exists for player+team+season → use override round instead of calculated
-- Override makes player eligible regardless of calculated status
-
-**3. Override Visibility**
-- Commissioner sees indicator (e.g., "⚙️" icon or "Override" badge) next to overridden players
-- Regular users see normal keeper cost display (no indicator)
-- Override is invisible to non-commissioners
-
-#### Files to Create
-
-| File | Purpose |
-|------|---------|
-| `app/(dashboard)/admin/keeper-overrides/page.tsx` | Admin UI for managing overrides |
-| `app/api/admin/keeper-overrides/route.ts` | GET (list), POST (create) endpoints |
-| `app/api/admin/keeper-overrides/[id]/route.ts` | DELETE endpoint |
-
-#### Files to Modify
-
-| File | Change |
-|------|--------|
-| `prisma/schema.prisma` | Add KeeperOverride model |
-| `lib/keeper/service.ts` | Check for overrides in keeper cost calculation |
-| `app/(dashboard)/my-team/page.tsx` | Show override indicator for commissioner |
-| `components/roster/roster-table.tsx` | Display override indicator conditionally |
-
-#### API Endpoints
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/api/admin/keeper-overrides?year=2026` | List all overrides for a season |
-| POST | `/api/admin/keeper-overrides` | Create new override |
-| DELETE | `/api/admin/keeper-overrides/[id]` | Remove override |
-
-**POST Request Body:**
-```json
-{
-  "playerId": "abc123",
-  "teamId": "xyz789",
-  "seasonYear": 2026,
-  "overrideRound": 1
-}
-```
-
-#### Keeper Calculation Logic Change
-
-In `getPlayerKeeperCost()`:
-
-```
-1. Check if KeeperOverride exists for (playerId, teamId, targetYear)
-2. If YES:
-   - Return overrideRound as keeperCost
-   - Mark isEligible = true
-   - Add flag: isOverride = true (for UI)
-3. If NO:
-   - Continue with normal calculation
-```
-
-#### UI Mockup - Admin Override Page
-
-```
-Keeper Overrides - 2026 Season
-[Season Dropdown: 2026 ▼]
-
-Current Overrides:
-| Player         | Team                    | Override Round | [Action] |
-|----------------|-------------------------|----------------|----------|
-| Jayden Daniels | Nabers Think I'm Selling| Round 1        | [Remove] |
-
-Add New Override:
-[Select Team ▼] [Select Player ▼] [Round: __] [Add Override]
-```
-
-#### UI Mockup - My Team (Commissioner View)
-
-```
-| Player         | Pos | Acquisition  | Keeper Cost   | Status   |
-|----------------|-----|--------------|---------------|----------|
-| Jayden Daniels | QB  | Draft Rd 1   | Round 1 ⚙️    | Eligible |
-```
-
-The ⚙️ icon (or similar indicator) only visible to commissioner.
+**2. Prisma client not recognizing new model**
+- Cause: Prisma client needed regeneration after schema change
+- Fix: Run `npx prisma generate` after schema changes, restart dev server
 
 #### Acceptance Criteria
 
-- [ ] KeeperOverride table exists in database
-- [ ] Commissioner can view all overrides for a season
-- [ ] Commissioner can add override for any player on any team
-- [ ] Commissioner can remove override
-- [ ] Override round is used instead of calculated cost
-- [ ] Overridden players show as eligible
-- [ ] Commissioner sees override indicator on roster
-- [ ] Non-commissioners do NOT see override indicator
-- [ ] Override only applies to specified season
-- [ ] Non-commissioners cannot access admin override page (403)
+- [x] KeeperOverride table exists in database
+- [x] Commissioner can view all overrides for a season
+- [x] Commissioner can add override for any player on any team
+- [x] Commissioner can remove override
+- [x] Override round is used instead of calculated cost
+- [x] Overridden players show as eligible
+- [x] Commissioner sees override indicator on roster (⚙️)
+- [x] Non-commissioners do NOT see override indicator
+- [x] Override only applies to specified season
+- [x] Non-commissioners cannot access admin override page (403)
 
 ---
 
@@ -1129,7 +1027,7 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-400 ✓
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-400 ✓
 
 **Production Data Status (2026-01-21):**
 - All 2023, 2024, 2025 draft and FA data imported
@@ -1159,3 +1057,12 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 ### TASK-501b: Keepers Page UI Polish
 **Priority:** Low
 **Note:** Keepers selection page (/my-team/keepers) has some UI glitchiness. Needs review and polish for smoother user experience.
+
+---
+
+### TASK-501c: Keeper Override Player Dropdown Performance
+**Priority:** Low
+**Note:** On /admin/keeper-overrides, the player dropdown loads slowly after selecting a team. Consider:
+- Caching team rosters
+- Loading players in background when page loads
+- Adding loading indicator to dropdown
