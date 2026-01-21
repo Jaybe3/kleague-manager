@@ -270,7 +270,7 @@ export async function getKeeperRoundConflicts(
   targetYear: number
 ): Promise<Map<number, PlayerKeeperCostResult[]>> {
   const roster = await getTeamRosterWithKeeperCosts(teamId, targetYear);
-  
+
   if (!roster) {
     return new Map();
   }
@@ -296,4 +296,63 @@ export async function getKeeperRoundConflicts(
   }
 
   return conflicts;
+}
+
+/**
+ * Get the current/active season year
+ */
+export async function getCurrentSeasonYear(): Promise<number> {
+  const activeSeason = await db.season.findFirst({
+    where: { isActive: true },
+    select: { year: true },
+  });
+
+  if (activeSeason) {
+    return activeSeason.year;
+  }
+
+  // Fallback: get the most recent season
+  const latestSeason = await db.season.findFirst({
+    orderBy: { year: "desc" },
+    select: { year: true },
+  });
+
+  return latestSeason?.year ?? new Date().getFullYear();
+}
+
+/**
+ * Get team by manager's user ID
+ * Falls back to most recent team if no team exists for the requested season
+ */
+export async function getTeamByManagerId(
+  managerId: string,
+  seasonYear: number
+): Promise<{ id: string; teamName: string; slotId: number } | null> {
+  // First try exact match for requested season
+  let team = await db.team.findFirst({
+    where: {
+      managerId: managerId,
+      seasonYear: seasonYear,
+    },
+    select: {
+      id: true,
+      teamName: true,
+      slotId: true,
+    },
+  });
+
+  // If no team for requested season, fall back to most recent team
+  if (!team) {
+    team = await db.team.findFirst({
+      where: { managerId: managerId },
+      orderBy: { seasonYear: "desc" },
+      select: {
+        id: true,
+        teamName: true,
+        slotId: true,
+      },
+    });
+  }
+
+  return team;
 }

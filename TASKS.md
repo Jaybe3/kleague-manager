@@ -310,7 +310,7 @@ As a team manager, I want to see my current roster with each player's keeper cos
 
 ### TASK-103: Keeper Cost Rule Corrections
 **Status:** COMPLETED
-**Completed:** 2026-01-16
+**Completed:** 2026-01-16 (Calculator), 2026-01-20 (Import Wiring)
 **Depends On:** TASK-102
 
 **Objective:** Implement correct keeper cost calculation rules per 2026-01-14 clarifications.
@@ -329,20 +329,40 @@ As a team manager, I want to see my current roster with each player's keeper cos
    - `findOriginalAcquisition()` now searches ALL teams for DRAFT first
    - If no DRAFT found → use FA Round 15 rules
    - Roster query filters `droppedDate: null` (only active players)
+   - Added `getCurrentSeasonYear()` and `getTeamByManagerId()` helper functions
 
 4. **Tests** (`lib/keeper/calculator.test.ts`)
    - Updated all 23 test expectations for correct year progression
    - All tests passing
 
+5. **Import Wiring (2026-01-20)**
+   - Updated `lib/keeper/index.ts` to export service functions
+   - Updated `app/(dashboard)/my-team/page.tsx` to use `@/lib/keeper`
+   - Updated `app/api/my-team/route.ts` to use `@/lib/keeper`
+   - Updated `app/api/teams/[teamId]/roster/route.ts` to use `@/lib/keeper`
+   - Updated `components/roster/roster-table.tsx` to use new `PlayerKeeperCostResult` type
+   - Deprecated old `lib/keepers/` folder (see `lib/keepers/DEPRECATED.md`)
+
+**Type Mapping (Old → New):**
+| Old (`lib/keepers/`) | New (`lib/keeper/`) |
+|---------------------|---------------------|
+| `getTeamRosterWithKeepers()` | `getTeamRosterWithKeeperCosts()` |
+| `RosterWithKeepers` | `TeamRosterWithKeeperCosts` |
+| `KeeperCostResult` | `PlayerKeeperCostResult` |
+
 **TODO (Future):**
 - Implement reset scenario detection when multi-year data exists
 - Player dropped and not picked up rest of season → re-enters draft pool
+- Remove deprecated `lib/keepers/` folder once confirmed no issues
 
 **Acceptance Criteria:**
 - [x] Keeper cost uses original draft year/round across all teams
 - [x] True undrafted FAs correctly use Round 15 rule
 - [x] Dropped players excluded from roster display
 - [x] All existing tests pass (23/23)
+- [x] All app files import from `@/lib/keeper` (not `@/lib/keepers`)
+- [x] TypeScript compiles with no errors
+- [x] `lib/keepers/` folder deprecated with migration guide
 
 ---
 

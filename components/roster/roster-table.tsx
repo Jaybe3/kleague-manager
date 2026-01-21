@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { KeeperCostResult } from "@/lib/keepers/types";
+import type { PlayerKeeperCostResult } from "@/lib/keeper";
 
 type SortField = "name" | "position" | "keeperCost" | "status";
 type SortDirection = "asc" | "desc";
 
 interface RosterTableProps {
-  players: KeeperCostResult[];
+  players: PlayerKeeperCostResult[];
 }
 
 const POSITION_ORDER: Record<string, number> = {
@@ -25,9 +25,21 @@ export function RosterTable({ players }: RosterTableProps) {
   const [positionFilter, setPositionFilter] = useState<string>("all");
   const [eligibleOnly, setEligibleOnly] = useState(false);
 
+  // Helper to get player display name
+  const getPlayerName = (p: PlayerKeeperCostResult) =>
+    `${p.player.firstName} ${p.player.lastName}`;
+
+  // Helper to get acquisition display string
+  const getAcquisitionDisplay = (p: PlayerKeeperCostResult) => {
+    if (p.acquisition.type === "DRAFT" && p.acquisition.draftRound) {
+      return `Draft Rd ${p.acquisition.draftRound}`;
+    }
+    return "Free Agent";
+  };
+
   // Get unique positions for filter dropdown
   const positions = useMemo(() => {
-    const uniquePositions = [...new Set(players.map((p) => p.position))];
+    const uniquePositions = [...new Set(players.map((p) => p.player.position))];
     return uniquePositions.sort(
       (a, b) => (POSITION_ORDER[a] ?? 99) - (POSITION_ORDER[b] ?? 99)
     );
@@ -39,12 +51,12 @@ export function RosterTable({ players }: RosterTableProps) {
 
     // Apply position filter
     if (positionFilter !== "all") {
-      filtered = filtered.filter((p) => p.position === positionFilter);
+      filtered = filtered.filter((p) => p.player.position === positionFilter);
     }
 
     // Apply eligible filter
     if (eligibleOnly) {
-      filtered = filtered.filter((p) => p.isEligible);
+      filtered = filtered.filter((p) => p.calculation.isEligible);
     }
 
     // Sort
@@ -53,21 +65,21 @@ export function RosterTable({ players }: RosterTableProps) {
 
       switch (sortField) {
         case "name":
-          comparison = a.playerName.localeCompare(b.playerName);
+          comparison = getPlayerName(a).localeCompare(getPlayerName(b));
           break;
         case "position":
           comparison =
-            (POSITION_ORDER[a.position] ?? 99) -
-            (POSITION_ORDER[b.position] ?? 99);
+            (POSITION_ORDER[a.player.position] ?? 99) -
+            (POSITION_ORDER[b.player.position] ?? 99);
           break;
         case "keeperCost":
           // Ineligible players (null cost) go to the end
-          const costA = a.keeperCost ?? 99;
-          const costB = b.keeperCost ?? 99;
+          const costA = a.calculation.keeperRound ?? 99;
+          const costB = b.calculation.keeperRound ?? 99;
           comparison = costA - costB;
           break;
         case "status":
-          comparison = (a.isEligible ? 0 : 1) - (b.isEligible ? 0 : 1);
+          comparison = (a.calculation.isEligible ? 0 : 1) - (b.calculation.isEligible ? 0 : 1);
           break;
       }
 
@@ -100,8 +112,8 @@ export function RosterTable({ players }: RosterTableProps) {
   // Find best value players (eligible with lowest cost)
   const bestValueThreshold = useMemo(() => {
     const eligibleCosts = players
-      .filter((p) => p.isEligible && p.keeperCost !== null)
-      .map((p) => p.keeperCost as number)
+      .filter((p) => p.calculation.isEligible && p.calculation.keeperRound !== null)
+      .map((p) => p.calculation.keeperRound as number)
       .sort((a, b) => b - a); // Higher round = better value
     return eligibleCosts[Math.min(2, eligibleCosts.length - 1)] ?? 99;
   }, [players]);
@@ -189,17 +201,17 @@ export function RosterTable({ players }: RosterTableProps) {
             </tr>
           </thead>
           <tbody>
-            {displayedPlayers.map((player) => {
+            {displayedPlayers.map((p) => {
               const isBestValue =
-                player.isEligible &&
-                player.keeperCost !== null &&
-                player.keeperCost >= bestValueThreshold;
+                p.calculation.isEligible &&
+                p.calculation.keeperRound !== null &&
+                p.calculation.keeperRound >= bestValueThreshold;
 
               return (
                 <tr
-                  key={player.playerId}
+                  key={p.player.id}
                   className={`border-b border-zinc-100 dark:border-zinc-700/50 ${
-                    player.isEligible
+                    p.calculation.isEligible
                       ? "bg-green-50/50 dark:bg-green-900/10"
                       : "bg-zinc-50/50 dark:bg-zinc-800/50"
                   }`}
@@ -207,7 +219,7 @@ export function RosterTable({ players }: RosterTableProps) {
                   <td className="py-3 px-2">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                        {player.playerName}
+                        {getPlayerName(p)}
                       </span>
                       {isBestValue && (
                         <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded">
@@ -217,25 +229,25 @@ export function RosterTable({ players }: RosterTableProps) {
                     </div>
                   </td>
                   <td className="py-3 px-2 text-zinc-600 dark:text-zinc-400">
-                    {player.position}
+                    {p.player.position}
                   </td>
                   <td className="py-3 px-2 text-zinc-600 dark:text-zinc-400">
-                    {player.acquisitionDisplay}
+                    {getAcquisitionDisplay(p)}
                   </td>
                   <td className="py-3 px-2 text-center text-zinc-600 dark:text-zinc-400">
-                    {player.yearsKept}
+                    {p.calculation.yearsKept}
                   </td>
                   <td className="py-3 px-2 text-center">
-                    {player.isEligible ? (
+                    {p.calculation.isEligible ? (
                       <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                        Round {player.keeperCost}
+                        Round {p.calculation.keeperRound}
                       </span>
                     ) : (
                       <span className="text-zinc-400 dark:text-zinc-500">—</span>
                     )}
                   </td>
                   <td className="py-3 px-2 text-center">
-                    {player.isEligible ? (
+                    {p.calculation.isEligible ? (
                       <span className="px-2 py-1 text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 rounded-full">
                         Eligible
                       </span>

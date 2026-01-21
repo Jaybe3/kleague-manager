@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   getTeamByManagerId,
-  getTeamRosterWithKeepers,
+  getTeamRosterWithKeeperCosts,
   getCurrentSeasonYear,
-} from "@/lib/keepers";
+} from "@/lib/keeper";
 import { RosterTable } from "@/components/roster/roster-table";
 
 export default async function MyTeamPage() {
@@ -43,7 +43,8 @@ export default async function MyTeamPage() {
     );
   }
 
-  const roster = await getTeamRosterWithKeepers(team.id, rosterSeasonYear);
+  // targetYear is what we calculate keeper costs for (the upcoming draft year)
+  const roster = await getTeamRosterWithKeeperCosts(team.id, activeSeasonYear);
 
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 p-4 md:p-8">
@@ -55,7 +56,7 @@ export default async function MyTeamPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
               <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
-                {roster?.teamName ?? team.teamName}
+                {roster?.team.teamName ?? team.teamName}
               </h2>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {rosterSeasonYear} Roster • {roster?.players.length ?? 0} Players • Keeper costs for {activeSeasonYear}

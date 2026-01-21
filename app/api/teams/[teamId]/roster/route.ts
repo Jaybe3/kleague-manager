@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getTeamRosterWithKeepers, getCurrentSeasonYear } from "@/lib/keepers";
+import { getTeamRosterWithKeeperCosts, getCurrentSeasonYear } from "@/lib/keeper";
 import { db } from "@/lib/db";
 
 export async function GET(
@@ -33,14 +33,14 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Get season year from query params or use current
+    // Get target year from query params or use current active season
     const searchParams = request.nextUrl.searchParams;
-    const seasonYearParam = searchParams.get("seasonYear");
-    const seasonYear = seasonYearParam
-      ? parseInt(seasonYearParam, 10)
+    const targetYearParam = searchParams.get("targetYear") ?? searchParams.get("seasonYear");
+    const targetYear = targetYearParam
+      ? parseInt(targetYearParam, 10)
       : await getCurrentSeasonYear();
 
-    const roster = await getTeamRosterWithKeepers(teamId, seasonYear);
+    const roster = await getTeamRosterWithKeeperCosts(teamId, targetYear);
 
     if (!roster) {
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });

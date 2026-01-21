@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
   getTeamByManagerId,
-  getTeamRosterWithKeepers,
+  getTeamRosterWithKeeperCosts,
   getCurrentSeasonYear,
-} from "@/lib/keepers";
+} from "@/lib/keeper";
 
 export async function GET() {
   try {
@@ -34,9 +34,9 @@ export async function GET() {
     }
 
     // Get full roster with keeper costs (costs calculated for activeSeasonYear)
-    const roster = await getTeamRosterWithKeepers(team.id, rosterSeasonYear);
+    const roster = await getTeamRosterWithKeeperCosts(team.id, activeSeasonYear);
 
-    return NextResponse.json({ ...roster, activeSeasonYear });
+    return NextResponse.json({ ...roster, activeSeasonYear, rosterSeasonYear });
   } catch (error) {
     console.error("Error fetching my team:", error);
     return NextResponse.json(
