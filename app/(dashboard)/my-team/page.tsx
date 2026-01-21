@@ -100,6 +100,12 @@ function PageHeader({ session }: { session: { user?: { name?: string | null; isC
         >
           Draft Board
         </Link>
+        <Link
+          href="/rules"
+          className="px-4 py-2 text-sm bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-md transition-colors"
+        >
+          Rules
+        </Link>
         {session.user?.isCommissioner && (
           <Link
             href="/admin/import"

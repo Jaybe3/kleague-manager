@@ -170,6 +170,21 @@ model KeeperOverride {
   @@map("keeper_overrides")
 }
 
+// ============= LEAGUE RULES =============
+
+model LeagueRule {
+  id              String   @id @default(cuid())
+  code            String   @unique                    // e.g., "KEEPER_COST_YEAR_2"
+  name            String                              // Human-readable name
+  description     String                              // Full rule explanation
+  effectiveSeason Int      @map("effective_season")   // Year rule was introduced
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("league_rules")
+}
+
 // ============= AUDIT LOG =============
 
 model AuditLog {
