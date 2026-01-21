@@ -955,6 +955,178 @@ The ⚙️ icon (or similar indicator) only visible to commissioner.
 
 ---
 
+### TASK-303: League Rules Registry
+**Status:** NOT STARTED
+**Priority:** MEDIUM
+**Depends On:** TASK-103-FINAL
+
+**Objective:** Create a registry of league rules with effective seasons, allowing rules to be toggled and documented for transparency.
+
+#### Use Case
+- League members can view all rules and when they took effect
+- Commissioner can enable/disable rules per season
+- Keeper calculation checks if rules are active before applying
+- New rules can be added without code changes
+
+#### Database Changes
+
+Add new model to `prisma/schema.prisma`:
+```prisma
+model LeagueRule {
+  id              String   @id @default(cuid())
+  code            String   @unique                    // e.g., "KEEPER_COST_YEAR_2"
+  name            String                              // Human-readable name
+  description     String                              // Full rule explanation
+  effectiveSeason Int      @map("effective_season")   // Year rule was introduced
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("league_rules")
+}
+```
+
+#### Seed Data (7 Rules)
+
+**Effective 2023 (Founding Rules):**
+
+| Code | Name | Description |
+|------|------|-------------|
+| `KEEPER_COST_YEAR_2` | Year 2 Base Cost | First keeper year: keep at original draft round (or R15 for FA) |
+| `KEEPER_COST_YEAR_3_PLUS` | Year 3+ Reduction | Second+ keeper year: cost reduces by 4 rounds per year |
+| `KEEPER_INELIGIBILITY` | Keeper Ineligibility | Player becomes ineligible when calculated cost < Round 1 |
+| `TRUE_FA_ROUND_15` | True FA Round 15 | Players never drafted use Round 15 as keeper base |
+| `TRADE_INHERITS_COST` | Trade Inherits Cost | Traded players retain original draft year/round for keeper calculation |
+
+**Effective 2025 (New Rules):**
+
+| Code | Name | Description |
+|------|------|-------------|
+| `FA_INHERITS_DRAFT_ROUND` | FA Inherits Draft Round | FA pickup of a player drafted same season inherits that draft round |
+| `KEEPER_ROUND_BUMP` | Keeper Round Bump | When two keepers conflict at same round, one must bump to earlier (more expensive) round |
+
+#### Features Required
+
+**1. Public Rules Page**
+- Location: `/rules`
+- All logged-in users can view
+- Display all enabled rules grouped by effective season
+- Show rule name, description, effective date
+- Read-only for non-commissioners
+
+**2. Admin Rules Page**
+- Location: `/admin/rules`
+- Commissioner only
+- Toggle rules enabled/disabled
+- Edit rule descriptions
+- Cannot delete founding rules (2023)
+
+**3. Rules Service**
+- `lib/rules/service.ts`
+- `isRuleActive(code: string, seasonYear: number): boolean`
+- `getRulesByEffectiveSeason(year: number): LeagueRule[]`
+- `getAllRules(): LeagueRule[]`
+
+**4. Keeper Calculation Integration**
+- Modify `lib/keeper/calculator.ts` to check rule activation
+- Example: Only apply FA_INHERITS_DRAFT_ROUND if `isRuleActive("FA_INHERITS_DRAFT_ROUND", targetYear)`
+
+#### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `app/(dashboard)/rules/page.tsx` | Public rules display page |
+| `app/(dashboard)/admin/rules/page.tsx` | Admin rules management page |
+| `app/api/rules/route.ts` | GET endpoint for all rules |
+| `app/api/admin/rules/route.ts` | GET/PATCH endpoints for admin |
+| `app/api/admin/rules/[id]/route.ts` | PATCH endpoint for single rule |
+| `lib/rules/service.ts` | Rules business logic |
+| `prisma/seed-rules.ts` | Seed script for 7 founding rules |
+
+#### Files to Modify
+
+| File | Change |
+|------|--------|
+| `prisma/schema.prisma` | Add LeagueRule model |
+| `lib/keeper/calculator.ts` | Check rule activation before applying logic |
+| `lib/keeper/service.ts` | Pass season year to calculator for rule checks |
+
+#### API Endpoints
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/rules` | List all enabled rules (public) |
+| GET | `/api/admin/rules` | List all rules with enabled status |
+| PATCH | `/api/admin/rules/[id]` | Toggle enabled or update description |
+
+**PATCH Request Body:**
+```json
+{
+  "enabled": false,
+  "description": "Updated rule description"
+}
+```
+
+#### UI Mockup - Public Rules Page
+
+```
+League Rules
+
+2023 Season (Founding Rules)
+┌─────────────────────────────────────────────────────────────┐
+│ Year 2 Base Cost                                            │
+│ First keeper year: keep at original draft round (or R15     │
+│ for FA)                                                     │
+├─────────────────────────────────────────────────────────────┤
+│ Year 3+ Reduction                                           │
+│ Second+ keeper year: cost reduces by 4 rounds per year      │
+├─────────────────────────────────────────────────────────────┤
+│ ... (3 more rules)                                          │
+└─────────────────────────────────────────────────────────────┘
+
+2025 Season (New Rules)
+┌─────────────────────────────────────────────────────────────┐
+│ FA Inherits Draft Round                                     │
+│ FA pickup of a player drafted same season inherits that     │
+│ draft round                                                 │
+├─────────────────────────────────────────────────────────────┤
+│ Keeper Round Bump                                           │
+│ When two keepers conflict at same round, one must bump to   │
+│ earlier (more expensive) round                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### UI Mockup - Admin Rules Page
+
+```
+Manage League Rules
+
+| Rule Name              | Effective | Enabled | [Actions]  |
+|------------------------|-----------|---------|------------|
+| Year 2 Base Cost       | 2023      | ✓       | [Edit]     |
+| Year 3+ Reduction      | 2023      | ✓       | [Edit]     |
+| Keeper Ineligibility   | 2023      | ✓       | [Edit]     |
+| True FA Round 15       | 2023      | ✓       | [Edit]     |
+| Trade Inherits Cost    | 2023      | ✓       | [Edit]     |
+| FA Inherits Draft Round| 2025      | ✓       | [Toggle][Edit] |
+| Keeper Round Bump      | 2025      | ✓       | [Toggle][Edit] |
+```
+
+#### Acceptance Criteria
+
+- [ ] LeagueRule table exists in database
+- [ ] 7 rules seeded with correct effective seasons
+- [ ] Public /rules page displays all enabled rules
+- [ ] Rules grouped by effective season on public page
+- [ ] Admin can toggle rules enabled/disabled
+- [ ] Admin can edit rule descriptions
+- [ ] Founding rules (2023) cannot be disabled
+- [ ] `isRuleActive()` returns correct value based on season and enabled status
+- [ ] Keeper calculation respects rule activation
+- [ ] Non-commissioners cannot access admin rules page (403)
+
+---
+
 ## Phase 4: Admin Features
 
 ### TASK-400: Manual Trade Entry
