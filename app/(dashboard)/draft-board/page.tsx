@@ -5,6 +5,17 @@ import { useRouter } from "next/navigation";
 import { DraftBoardResponse } from "@/lib/draft-board/types";
 import { DraftBoardGrid } from "@/components/draft-board/draft-board-grid";
 import { DraftBoardLegend } from "@/components/draft-board/draft-board-legend";
+import { PageHeader } from "@/components/layout";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 export default function DraftBoardPage() {
   const router = useRouter();
@@ -53,50 +64,57 @@ export default function DraftBoardPage() {
     }
   }
 
-  function handleSeasonChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const year = parseInt(e.target.value, 10);
+  function handleSeasonChange(value: string) {
+    const year = parseInt(value, 10);
     setSelectedYear(year);
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6">
-            <div className="animate-pulse">
-              <div className="h-8 bg-zinc-200 dark:bg-zinc-700 rounded w-1/4 mb-4"></div>
-              <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-1/3 mb-8"></div>
-              <div className="space-y-2">
+      <div className="space-y-6">
+        <PageHeader
+          title="Draft Board"
+          description="Loading..."
+        />
+        <Card>
+          <CardContent className="pt-6">
+            <div className="animate-pulse space-y-4">
+              <div className="h-8 bg-muted rounded w-1/4"></div>
+              <div className="h-4 bg-muted rounded w-1/3"></div>
+              <div className="space-y-2 mt-6">
                 {Array.from({ length: 10 }).map((_, i) => (
-                  <div key={i} className="h-12 bg-zinc-200 dark:bg-zinc-700 rounded"></div>
+                  <div key={i} className="h-12 bg-muted rounded"></div>
                 ))}
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6">
-            <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-md p-4">
-              <h2 className="text-red-800 dark:text-red-400 font-semibold mb-2">
-                Error
-              </h2>
-              <p className="text-red-700 dark:text-red-500">{error}</p>
-              <button
+      <div className="space-y-6">
+        <PageHeader
+          title="Draft Board"
+          description="Error loading draft board"
+        />
+        <Card>
+          <CardContent className="pt-6">
+            <div className="bg-error/10 border border-error/20 rounded-md p-4">
+              <h2 className="text-error font-semibold mb-2">Error</h2>
+              <p className="text-error/80">{error}</p>
+              <Button
+                variant="outline"
                 onClick={() => router.push("/my-team")}
-                className="mt-4 px-4 py-2 text-sm bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-md transition-colors"
+                className="mt-4"
               >
                 Back to My Team
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -114,65 +132,56 @@ export default function DraftBoardPage() {
   const totalKeepers = data.keepers.length;
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-4 md:p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                Draft Board
-              </h1>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {data.season.totalRounds} rounds | {data.teams.length} teams
-              </p>
+    <div className="space-y-6">
+      <PageHeader
+        title="Draft Board"
+        description={`${data.season.totalRounds} rounds | ${data.teams.length} teams`}
+        actions={
+          <Select
+            value={selectedYear?.toString() ?? ""}
+            onValueChange={handleSeasonChange}
+            disabled={loading}
+          >
+            <SelectTrigger className="w-[140px] bg-background border-border">
+              <SelectValue placeholder="Select season" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableSeasons.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year} Season
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
+
+      {/* Summary stats */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap gap-3">
+              <div className="px-3 py-2 bg-primary/10 border border-primary/20 rounded-md">
+                <span className="text-sm text-primary">
+                  <span className="font-semibold">{totalKeepers}</span> keepers finalized
+                </span>
+              </div>
+              <div className="px-3 py-2 bg-muted border border-border rounded-md">
+                <span className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">{teamsWithKeepers}</span> of {data.teams.length} teams submitted
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              <select
-                value={selectedYear ?? ""}
-                onChange={handleSeasonChange}
-                disabled={loading}
-                className="px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 text-sm"
-              >
-                {availableSeasons.map((year) => (
-                  <option key={year} value={year}>
-                    {year} Season
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => router.push("/my-team")}
-                className="px-4 py-2 text-sm bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-md transition-colors"
-              >
-                Back to My Team
-              </button>
-            </div>
+            <DraftBoardLegend />
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Summary stats */}
-          <div className="mt-4 flex flex-wrap gap-4">
-            <div className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
-              <span className="text-sm text-amber-700 dark:text-amber-300">
-                <span className="font-semibold">{totalKeepers}</span> keepers finalized
-              </span>
-            </div>
-            <div className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
-              <span className="text-sm text-blue-700 dark:text-blue-300">
-                <span className="font-semibold">{teamsWithKeepers}</span> of {data.teams.length} teams submitted
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-4">
-          <DraftBoardLegend />
-        </div>
-
-        {/* Draft Board Grid */}
-        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-4 md:p-6">
+      {/* Draft Board Grid */}
+      <Card>
+        <CardContent className="pt-6">
           {data.teams.length === 0 ? (
-            <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
+            <div className="text-center py-12 text-muted-foreground">
               <p className="text-lg font-medium">No teams found for this season</p>
               <p className="text-sm mt-2">
                 Select a different season or import draft data first.
@@ -185,8 +194,8 @@ export default function DraftBoardPage() {
               totalRounds={data.season.totalRounds}
             />
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

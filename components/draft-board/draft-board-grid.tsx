@@ -26,18 +26,18 @@ export function DraftBoardGrid({ teams, keepers, totalRounds }: DraftBoardGridPr
         {/* Header row with pick numbers and team names */}
         <thead>
           <tr>
-            <th className="sticky left-0 z-10 bg-zinc-100 dark:bg-zinc-800 px-3 py-2 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-300 border-b border-r border-zinc-300 dark:border-zinc-600 w-16">
+            <th className="sticky left-0 z-10 bg-card px-3 py-2 text-left text-sm font-semibold text-foreground border-b border-r border-border w-16">
               Round
             </th>
             {teams.map((team) => (
               <th
                 key={team.id}
-                className="px-2 py-2 text-center border-b border-zinc-300 dark:border-zinc-600 min-w-[100px]"
+                className="px-2 py-2 text-center border-b border-border min-w-[100px]"
               >
-                <div className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                <div className="text-xs font-bold text-primary">
                   Pick {team.draftPosition}
                 </div>
-                <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate" title={team.teamName}>
+                <div className="text-xs text-muted-foreground truncate" title={team.teamName}>
                   {team.teamName}
                 </div>
               </th>
@@ -50,7 +50,7 @@ export function DraftBoardGrid({ teams, keepers, totalRounds }: DraftBoardGridPr
           {rounds.map((round) => (
             <tr key={round}>
               {/* Round number - sticky */}
-              <td className="sticky left-0 z-10 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-center text-sm font-medium text-zinc-700 dark:text-zinc-300 border-r border-b border-zinc-300 dark:border-zinc-600">
+              <td className="sticky left-0 z-10 bg-card px-3 py-1 text-center text-sm font-medium text-foreground border-r border-b border-border">
                 {round}
               </td>
 
@@ -62,7 +62,7 @@ export function DraftBoardGrid({ teams, keepers, totalRounds }: DraftBoardGridPr
                 return (
                   <td
                     key={`${team.id}-${round}`}
-                    className="p-0 border-b border-zinc-200 dark:border-zinc-700"
+                    className="p-0 border-b border-border/50"
                   >
                     <DraftBoardCell keeper={keeper} />
                   </td>

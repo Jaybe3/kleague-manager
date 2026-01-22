@@ -1245,7 +1245,49 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓
+### TASK-501h: Restyle Draft Board Page
+**Status:** COMPLETED
+**Completed:** January 2026
+**Depends On:** TASK-501g
+
+**Objective:** Apply Forest theme and shadcn/ui components to Draft Board page.
+
+#### Requirements
+- Use PageHeader component from layout
+- Use shadcn/ui Card for content sections
+- Use shadcn/ui Select for season dropdown
+- Use shadcn/ui Badge for keeper indicators and stats
+- Remove old inline navigation (handled by AppShell)
+- Maintain grid layout for draft board (10 teams x N rounds)
+- Ensure horizontal scroll works on smaller screens
+- Apply Forest theme colors consistently
+- Keeper cells should be visually distinct (emerald accent)
+
+#### Files Modified
+| File | Change |
+|------|--------|
+| `app/(dashboard)/draft-board/page.tsx` | Restyled with shadcn/ui Card, Select; uses PageHeader; removed old nav |
+| `components/draft-board/draft-board-grid.tsx` | Applied Forest theme to grid cells and headers |
+| `components/draft-board/draft-board-cell.tsx` | Restyled cells with Forest theme (emerald for keepers) |
+| `components/draft-board/draft-board-legend.tsx` | Restyled legend with Forest theme colors |
+
+#### Acceptance Criteria
+- [x] Page uses PageHeader component
+- [x] Season selector uses shadcn/ui Select
+- [x] Stats badges use Forest theme colors
+- [x] Grid maintains 10-column layout
+- [x] Horizontal scroll works on mobile
+- [x] Keeper cells visually distinct (emerald/primary accent)
+- [x] Legend styled consistently
+- [x] Old inline navigation removed
+- [x] Responsive on mobile
+- [x] No TypeScript errors
+
+**Completion Note:** Completed January 2026. Draft Board restyled with shadcn/ui Card, Select. Keeper cells use emerald/primary accent. Legend moved into stats card. During testing, discovered empty 2024/2025 keepers is a data issue (no keeper_selections records) - logged as TASK-600.
+
+---
+
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓, TASK-501h ✓
 
 **Production Data Status (2026-01-21):**
 - All 2023, 2024, 2025 draft and FA data imported
@@ -1296,3 +1338,29 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 - Modify `lib/keeper/calculator.ts` to import `isRuleActive` from rules service
 - Wrap rule-specific logic in `isRuleActive()` checks
 - Pass `targetYear` through calculation pipeline for rule activation checks
+
+---
+
+### TASK-600: Backfill Historical Keeper Selections
+**Priority:** Low
+**Status:** BACKLOG
+**Depends On:** None
+
+**Objective:** Populate keeper_selections table with historical data for 2024 and 2025 seasons so draft board shows past keepers.
+
+**Context:**
+- Draft board correctly queries keeper_selections table
+- Only 2026 has data (3 finalized keepers)
+- 2024/2025 show empty because no keeper_selections records exist
+- Need to determine source of historical keeper data (Excel? CBS export? Manual entry?)
+
+**Acceptance Criteria:**
+- [ ] Identify source of 2024 keeper decisions
+- [ ] Identify source of 2025 keeper decisions
+- [ ] Create script or import process to backfill data
+- [ ] Draft board displays keepers for 2024 season
+- [ ] Draft board displays keepers for 2025 season
+
+**Notes:**
+- Discovered during TASK-501h (Draft Board restyle)
+- Not blocking - cosmetic/historical completeness issue
