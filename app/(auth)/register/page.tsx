@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -56,101 +59,85 @@ export default function RegisterPage() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-6">
+      <h2 className="text-xl font-semibold text-foreground mb-6">
         Create Account
       </h2>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded text-red-700 dark:text-red-400 text-sm">
+        <div className="mb-4 p-3 bg-error/10 border border-error/20 rounded-md text-error text-sm">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label
-            htmlFor="displayName"
-            className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
-          >
+          <Label htmlFor="displayName" className="mb-1">
             Display Name
-          </label>
-          <input
+          </Label>
+          <Input
             id="displayName"
             name="displayName"
             type="text"
             required
             autoComplete="name"
-            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md shadow-sm bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
 
         <div>
-          <label
-            htmlFor="email"
-            className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
-          >
+          <Label htmlFor="email" className="mb-1">
             Email
-          </label>
-          <input
+          </Label>
+          <Input
             id="email"
             name="email"
             type="email"
             required
             autoComplete="email"
-            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md shadow-sm bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
 
         <div>
-          <label
-            htmlFor="password"
-            className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
-          >
+          <Label htmlFor="password" className="mb-1">
             Password
-          </label>
-          <input
+          </Label>
+          <Input
             id="password"
             name="password"
             type="password"
             required
             autoComplete="new-password"
             minLength={8}
-            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md shadow-sm bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
 
         <div>
-          <label
-            htmlFor="confirmPassword"
-            className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
-          >
+          <Label htmlFor="confirmPassword" className="mb-1">
             Confirm Password
-          </label>
-          <input
+          </Label>
+          <Input
             id="confirmPassword"
             name="confirmPassword"
             type="password"
             required
             autoComplete="new-password"
             minLength={8}
-            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md shadow-sm bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
 
-        <button
+        <Button
           type="submit"
           disabled={loading}
-          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          className="w-full"
         >
           {loading ? "Creating account..." : "Create Account"}
-        </button>
+        </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="mt-6 text-center text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link
           href="/login"
-          className="text-blue-600 hover:text-blue-500 font-medium"
+          className="text-primary hover:text-primary/80 font-medium"
         >
           Sign in
         </Link>

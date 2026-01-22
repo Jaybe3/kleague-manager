@@ -1473,7 +1473,43 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓, TASK-501h ✓, TASK-501i ✓, TASK-501j ✓, TASK-501k ✓, TASK-501l ✓
+### TASK-501m: Restyle Auth Pages (Login/Register)
+**Status:** COMPLETED
+**Completed:** January 2026
+**Depends On:** TASK-501l
+
+**Objective:** Apply Forest theme and shadcn/ui components to Auth Layout, Login, and Register pages.
+
+#### Files Created
+| File | Purpose |
+|------|---------|
+| `components/ui/label.tsx` | Installed shadcn/ui Label component |
+
+#### Files Modified
+| File | Change |
+|------|--------|
+| `app/(auth)/layout.tsx` | Forest theme background (bg-background), shadcn/ui Card |
+| `app/(auth)/login/page.tsx` | shadcn/ui Input, Button, Label; Forest error colors |
+| `app/(auth)/register/page.tsx` | shadcn/ui Input, Button, Label; Forest error colors |
+
+#### Acceptance Criteria
+- [x] Auth layout uses Forest theme background (bg-background)
+- [x] Auth container uses shadcn/ui Card
+- [x] Login form uses shadcn/ui Input, Button, Label
+- [x] Register form uses shadcn/ui Input, Button, Label
+- [x] Error messages use Forest semantic colors (bg-error/10, text-error)
+- [x] Sign in functionality still works
+- [x] Registration functionality still works
+- [x] Redirect after login still works
+- [x] Responsive on mobile
+- [x] No TypeScript errors
+- [x] Visual consistency with Forest theme
+
+**Completion Note:** Completed January 2026. Auth pages restyled with shadcn/ui Card, Input, Button, Label. Forest theme applied throughout with emerald primary accent.
+
+---
+
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓, TASK-501h ✓, TASK-501i ✓, TASK-501j ✓, TASK-501k ✓, TASK-501l ✓, TASK-501m ✓
 
 **Production Data Status (2026-01-21):**
 - All 2023, 2024, 2025 draft and FA data imported
