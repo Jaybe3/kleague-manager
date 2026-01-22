@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 import { KeeperSelectionInfo } from "@/lib/keeper/selection-types";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface SelectedKeepersTableProps {
   selections: KeeperSelectionInfo[];
@@ -63,7 +73,7 @@ export function SelectedKeepersTable({
 
   if (selections.length === 0) {
     return (
-      <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-md">
+      <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-md">
         <p>No keepers selected yet.</p>
         <p className="text-sm mt-1">
           Select players from your eligible players below.
@@ -73,129 +83,125 @@ export function SelectedKeepersTable({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-zinc-200 dark:border-zinc-700">
-            <th className="text-left py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300">
-              Player
-            </th>
-            <th className="text-left py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300">
-              Pos
-            </th>
-            <th className="text-center py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300">
-              Calculated Cost
-            </th>
-            <th className="text-center py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300">
-              Final Round
-            </th>
-            {!isFinalized && (
-              <th className="text-center py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300">
-                Actions
-              </th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {selections.map((selection) => {
-            const isLoading = loadingPlayerId === selection.player.id;
-            const showBumpOptions = bumpOptionsPlayerId === selection.player.id;
+    <div className="space-y-3">
+      <div className="rounded-md border border-border overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
+              <TableHead className="py-3">Player</TableHead>
+              <TableHead className="py-3">Pos</TableHead>
+              <TableHead className="text-center py-3">Calculated Cost</TableHead>
+              <TableHead className="text-center py-3">Final Round</TableHead>
+              {!isFinalized && (
+                <TableHead className="text-center py-3">Actions</TableHead>
+              )}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {selections.map((selection) => {
+              const isLoading = loadingPlayerId === selection.player.id;
+              const showBumpOptions = bumpOptionsPlayerId === selection.player.id;
 
-            return (
-              <tr
-                key={selection.id}
-                className={`border-b border-zinc-100 dark:border-zinc-700/50 ${
-                  selection.isBumped
-                    ? "bg-yellow-50/50 dark:bg-yellow-900/10"
-                    : "bg-white dark:bg-zinc-800"
-                }`}
-              >
-                <td className="py-3 px-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                      {selection.player.firstName} {selection.player.lastName}
-                    </span>
-                    {selection.isBumped && (
-                      <span className="px-1.5 py-0.5 text-xs font-medium bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 rounded">
-                        Bumped
+              return (
+                <TableRow
+                  key={selection.id}
+                  className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${
+                    selection.isBumped ? "bg-warning/5" : ""
+                  }`}
+                >
+                  <TableCell className="py-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-foreground">
+                        {selection.player.firstName} {selection.player.lastName}
                       </span>
-                    )}
-                    {selection.isFinalized && (
-                      <span className="px-1.5 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded">
-                        Finalized
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="py-3 px-2 text-zinc-600 dark:text-zinc-400">
-                  {selection.player.position}
-                </td>
-                <td className="py-3 px-2 text-center text-zinc-600 dark:text-zinc-400">
-                  Round {selection.calculatedRound}
-                </td>
-                <td className="py-3 px-2 text-center">
-                  <span
-                    className={`font-semibold ${
-                      selection.isBumped
-                        ? "text-yellow-700 dark:text-yellow-400"
-                        : "text-zinc-900 dark:text-zinc-100"
-                    }`}
-                  >
-                    Round {selection.finalRound}
-                  </span>
-                </td>
-                {!isFinalized && (
-                  <td className="py-3 px-2 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => handleShowBumpOptions(selection.player.id)}
-                        disabled={isLoading}
-                        className="px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-900 disabled:opacity-50 transition-colors"
-                      >
-                        {showBumpOptions ? "Cancel" : "Bump"}
-                      </button>
-                      <button
-                        onClick={() => handleRemove(selection.player.id)}
-                        disabled={isLoading}
-                        className="px-2 py-1 text-xs font-medium bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50 transition-colors"
-                      >
-                        Remove
-                      </button>
+                      {selection.isBumped && (
+                        <Badge variant="outline" className="border-warning/50 text-warning bg-warning/10 text-xs">
+                          Bumped
+                        </Badge>
+                      )}
+                      {selection.isFinalized && (
+                        <Badge className="bg-success/20 text-success hover:bg-success/30 border-0 text-xs">
+                          Finalized
+                        </Badge>
+                      )}
                     </div>
-                    {showBumpOptions && (
-                      <div className="mt-2 p-2 bg-zinc-100 dark:bg-zinc-700 rounded">
-                        {bumpOptions.length > 0 ? (
-                          <div className="flex flex-wrap gap-1 justify-center">
-                            <span className="text-xs text-zinc-600 dark:text-zinc-400 w-full mb-1">
-                              Bump to round:
-                            </span>
-                            {bumpOptions.map((round) => (
-                              <button
-                                key={round}
-                                onClick={() => handleBump(selection.player.id, round)}
-                                disabled={isLoading}
-                                className="px-2 py-1 text-xs font-medium bg-white dark:bg-zinc-600 text-zinc-700 dark:text-zinc-200 rounded border border-zinc-300 dark:border-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-500 disabled:opacity-50 transition-colors"
-                              >
-                                R{round}
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                            No earlier rounds available
-                          </span>
-                        )}
+                  </TableCell>
+                  <TableCell className="py-4 text-muted-foreground">
+                    {selection.player.position}
+                  </TableCell>
+                  <TableCell className="py-4 text-center text-muted-foreground">
+                    Round {selection.calculatedRound}
+                  </TableCell>
+                  <TableCell className="py-4 text-center">
+                    <span
+                      className={`font-semibold ${
+                        selection.isBumped
+                          ? "text-warning"
+                          : "text-foreground"
+                      }`}
+                    >
+                      Round {selection.finalRound}
+                    </span>
+                  </TableCell>
+                  {!isFinalized && (
+                    <TableCell className="py-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleShowBumpOptions(selection.player.id)}
+                          disabled={isLoading}
+                          className="h-7 px-2 text-xs border-primary/50 text-primary hover:bg-primary/10"
+                        >
+                          {showBumpOptions ? "Cancel" : "Bump"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRemove(selection.player.id)}
+                          disabled={isLoading}
+                          className="h-7 px-2 text-xs border-error/50 text-error hover:bg-error/10"
+                        >
+                          Remove
+                        </Button>
                       </div>
-                    )}
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-        {selections.length} keeper{selections.length !== 1 ? 's' : ''} selected
+                      {showBumpOptions && (
+                        <div className="mt-2 p-2 bg-muted/50 rounded-md">
+                          {bumpOptions.length > 0 ? (
+                            <div className="flex flex-wrap gap-1 justify-center">
+                              <span className="text-xs text-muted-foreground w-full mb-1">
+                                Bump to round:
+                              </span>
+                              {bumpOptions.map((round) => (
+                                <Button
+                                  key={round}
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleBump(selection.player.id, round)}
+                                  disabled={isLoading}
+                                  className="h-6 px-2 text-xs"
+                                >
+                                  R{round}
+                                </Button>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              No earlier rounds available
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
+                  )}
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="text-sm text-muted-foreground">
+        {selections.length} keeper{selections.length !== 1 ? "s" : ""} selected
       </div>
     </div>
   );

@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { ConflictAlert } from "@/components/keepers/conflict-alert";
 import { SelectedKeepersTable } from "@/components/keepers/selected-keepers-table";
 import { EligiblePlayersTable } from "@/components/keepers/eligible-players-table";
+import { PageHeader } from "@/components/layout";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   KeeperSelectionsResponse,
   DeadlineInfo,
@@ -129,43 +132,50 @@ export default function KeepersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 p-4 md:p-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6">
-            <div className="animate-pulse">
-              <div className="h-8 bg-zinc-200 dark:bg-zinc-700 rounded w-1/4 mb-4"></div>
-              <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-1/2 mb-8"></div>
-              <div className="space-y-3">
-                <div className="h-10 bg-zinc-200 dark:bg-zinc-700 rounded"></div>
-                <div className="h-10 bg-zinc-200 dark:bg-zinc-700 rounded"></div>
-                <div className="h-10 bg-zinc-200 dark:bg-zinc-700 rounded"></div>
+      <div className="space-y-6">
+        <PageHeader
+          title="Keeper Selection"
+          description="Loading..."
+        />
+        <Card>
+          <CardContent className="pt-6">
+            <div className="animate-pulse space-y-4">
+              <div className="h-8 bg-muted rounded w-1/4"></div>
+              <div className="h-4 bg-muted rounded w-1/2"></div>
+              <div className="space-y-3 mt-6">
+                <div className="h-10 bg-muted rounded"></div>
+                <div className="h-10 bg-muted rounded"></div>
+                <div className="h-10 bg-muted rounded"></div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 p-4 md:p-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6">
-            <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-md p-4">
-              <h2 className="text-red-800 dark:text-red-400 font-semibold mb-2">
-                Error
-              </h2>
-              <p className="text-red-700 dark:text-red-500">{error}</p>
-              <button
+      <div className="space-y-6">
+        <PageHeader
+          title="Keeper Selection"
+          description="Error loading keeper data"
+        />
+        <Card>
+          <CardContent className="pt-6">
+            <div className="bg-error/10 border border-error/20 rounded-md p-4">
+              <h2 className="text-error font-semibold mb-2">Error</h2>
+              <p className="text-error/80">{error}</p>
+              <Button
+                variant="outline"
                 onClick={() => router.push("/my-team")}
-                className="mt-4 px-4 py-2 text-sm bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-md transition-colors"
+                className="mt-4"
               >
                 Back to My Team
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -178,61 +188,45 @@ export default function KeepersPage() {
   const canFinalize = data.selections.length > 0 && data.conflicts.length === 0 && !data.isFinalized && data.deadlineInfo.canModify;
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-4 md:p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                Keeper Selection
-              </h1>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {data.team.teamName} - {data.season.year} Season
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push("/my-team")}
-                className="px-4 py-2 text-sm bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-md transition-colors"
-              >
-                Back to Roster
-              </button>
-              {!data.isFinalized && (
-                <button
-                  onClick={handleFinalize}
-                  disabled={!canFinalize || finalizing}
-                  className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {finalizing ? "Finalizing..." : "Finalize Selections"}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Deadline Banner */}
-          <DeadlineBanner deadlineInfo={data.deadlineInfo} isFinalized={data.isFinalized} />
-        </div>
-
-        {/* Action Error */}
-        {actionError && (
-          <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-md p-4">
-            <p className="text-red-700 dark:text-red-500">{actionError}</p>
-            <button
-              onClick={() => setActionError(null)}
-              className="mt-2 text-sm text-red-600 dark:text-red-400 underline"
+    <div className="space-y-6">
+      <PageHeader
+        title="Keeper Selection"
+        description={`${data.team.teamName} - ${data.season.year} Season`}
+        actions={
+          !data.isFinalized && (
+            <Button
+              onClick={handleFinalize}
+              disabled={!canFinalize || finalizing}
             >
-              Dismiss
-            </button>
-          </div>
-        )}
+              {finalizing ? "Finalizing..." : "Finalize Selections"}
+            </Button>
+          )
+        }
+      />
 
-        {/* Conflicts Alert */}
-        {!data.isFinalized && <ConflictAlert conflicts={data.conflicts} />}
+      {/* Deadline Banner */}
+      <DeadlineBanner deadlineInfo={data.deadlineInfo} isFinalized={data.isFinalized} />
 
-        {/* Selected Keepers */}
-        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-4 md:p-6">
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">
+      {/* Action Error */}
+      {actionError && (
+        <div className="bg-error/10 border border-error/20 rounded-md p-4">
+          <p className="text-error/80">{actionError}</p>
+          <button
+            onClick={() => setActionError(null)}
+            className="mt-2 text-sm text-error underline hover:no-underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Conflicts Alert */}
+      {!data.isFinalized && <ConflictAlert conflicts={data.conflicts} />}
+
+      {/* Selected Keepers */}
+      <Card>
+        <CardContent className="pt-6">
+          <h2 className="text-xl font-bold text-foreground mb-4">
             Selected Keepers ({data.selections.length})
           </h2>
           <SelectedKeepersTable
@@ -243,11 +237,13 @@ export default function KeepersPage() {
             onBump={handleBumpPlayer}
             getBumpOptions={getBumpOptions}
           />
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Eligible Players */}
-        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-4 md:p-6">
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">
+      {/* Eligible Players */}
+      <Card>
+        <CardContent className="pt-6">
+          <h2 className="text-xl font-bold text-foreground mb-4">
             Eligible Players
           </h2>
           <EligiblePlayersTable
@@ -256,8 +252,8 @@ export default function KeepersPage() {
             isFinalized={data.isFinalized}
             onSelect={handleSelectPlayer}
           />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -266,8 +262,8 @@ export default function KeepersPage() {
 function DeadlineBanner({ deadlineInfo, isFinalized }: { deadlineInfo: DeadlineInfo; isFinalized: boolean }) {
   if (isFinalized) {
     return (
-      <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
-        <p className="text-sm text-green-700 dark:text-green-400 font-medium">
+      <div className="p-3 bg-success/10 border border-success/20 rounded-md">
+        <p className="text-sm text-success font-medium">
           Your keeper selections have been finalized.
         </p>
       </div>
@@ -286,11 +282,11 @@ function DeadlineBanner({ deadlineInfo, isFinalized }: { deadlineInfo: DeadlineI
   switch (deadlineInfo.state) {
     case 'passed':
       return (
-        <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-          <p className="text-sm text-red-700 dark:text-red-400 font-medium">
+        <div className="p-3 bg-error/10 border border-error/20 rounded-md">
+          <p className="text-sm text-error font-medium">
             Deadline has passed - selections are locked
           </p>
-          <p className="text-xs text-red-600 dark:text-red-500 mt-1">
+          <p className="text-xs text-error/70 mt-1">
             Deadline was: {deadlineDate}
           </p>
         </div>
@@ -298,11 +294,11 @@ function DeadlineBanner({ deadlineInfo, isFinalized }: { deadlineInfo: DeadlineI
 
     case 'urgent':
       return (
-        <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md animate-pulse">
-          <p className="text-sm text-red-700 dark:text-red-400 font-medium">
+        <div className="p-3 bg-error/10 border border-error/20 rounded-md animate-pulse">
+          <p className="text-sm text-error font-medium">
             Less than 24 hours remaining!
           </p>
-          <p className="text-xs text-red-600 dark:text-red-500 mt-1">
+          <p className="text-xs text-error/70 mt-1">
             Deadline: {deadlineDate}
           </p>
         </div>
@@ -310,11 +306,11 @@ function DeadlineBanner({ deadlineInfo, isFinalized }: { deadlineInfo: DeadlineI
 
     case 'approaching':
       return (
-        <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
-          <p className="text-sm text-yellow-700 dark:text-yellow-400 font-medium">
+        <div className="p-3 bg-warning/10 border border-warning/20 rounded-md">
+          <p className="text-sm text-warning font-medium">
             Deadline approaching
           </p>
-          <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
+          <p className="text-xs text-warning/70 mt-1">
             Deadline: {deadlineDate}
           </p>
         </div>
@@ -323,8 +319,8 @@ function DeadlineBanner({ deadlineInfo, isFinalized }: { deadlineInfo: DeadlineI
     case 'open':
     default:
       return (
-        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
-          <p className="text-sm text-blue-700 dark:text-blue-400">
+        <div className="p-3 bg-primary/10 border border-primary/20 rounded-md">
+          <p className="text-sm text-primary">
             <span className="font-medium">Deadline:</span> {deadlineDate}
           </p>
         </div>

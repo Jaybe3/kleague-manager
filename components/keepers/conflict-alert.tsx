@@ -12,11 +12,11 @@ export function ConflictAlert({ conflicts }: ConflictAlertProps) {
   }
 
   return (
-    <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-md p-4 mb-4">
-      <h3 className="text-red-800 dark:text-red-400 font-semibold mb-2">
+    <div className="bg-error/10 border border-error/20 rounded-md p-4">
+      <h3 className="text-error font-semibold mb-2">
         Round Conflicts Detected
       </h3>
-      <p className="text-red-700 dark:text-red-500 text-sm mb-3">
+      <p className="text-error/80 text-sm mb-3">
         Multiple players are assigned to the same round. You must bump one player
         to an earlier round before finalizing.
       </p>
@@ -24,9 +24,9 @@ export function ConflictAlert({ conflicts }: ConflictAlertProps) {
         {conflicts.map((conflict) => (
           <li
             key={conflict.round}
-            className="text-red-700 dark:text-red-500 text-sm"
+            className="text-error/80 text-sm"
           >
-            <span className="font-medium">Round {conflict.round}:</span>{" "}
+            <span className="font-medium text-error">Round {conflict.round}:</span>{" "}
             {conflict.players.map((p) => p.name).join(", ")}
           </li>
         ))}

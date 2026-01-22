@@ -1192,7 +1192,60 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓
+### TASK-501g: Restyle Keepers Page
+**Status:** COMPLETED
+**Completed:** January 2026
+**Depends On:** TASK-501f
+
+**Objective:** Apply Forest theme and shadcn/ui components to the Keepers selection page and its sub-components.
+
+#### Requirements
+- Use PageHeader component from layout
+- Use shadcn/ui Card for content containers
+- Use shadcn/ui Table for both selected keepers and eligible players tables
+- Use shadcn/ui Badge for status indicators (Eligible, Bumped, Finalized)
+- Use shadcn/ui Button for actions (Select, Remove, Bump, Finalize)
+- Use shadcn/ui Select for position filter dropdown
+- Restyle DeadlineBanner component with Forest theme colors
+- Remove old inline navigation (now handled by AppShell)
+- Apply Forest theme colors consistently
+- Maintain all existing functionality (select, remove, bump, finalize)
+
+#### Files Modified
+| File | Change |
+|------|--------|
+| `app/(dashboard)/my-team/keepers/page.tsx` | Restyled with shadcn/ui Card, Button; uses PageHeader; removed old nav; restyled DeadlineBanner |
+| `components/keepers/conflict-alert.tsx` | Applied Forest theme error colors (bg-error/10, border-error/20, text-error) |
+| `components/keepers/selected-keepers-table.tsx` | Converted to shadcn/ui Table, Badge, Button |
+| `components/keepers/eligible-players-table.tsx` | Converted to shadcn/ui Table, Badge, Button, Select |
+
+#### DeadlineBanner States (Forest Theme)
+| State | Background | Border | Text |
+|-------|------------|--------|------|
+| open | bg-primary/10 | border-primary/20 | text-primary |
+| approaching | bg-warning/10 | border-warning/20 | text-warning |
+| urgent | bg-error/10 | border-error/20 | text-error |
+| passed | bg-error/10 | border-error/20 | text-error |
+
+#### Acceptance Criteria
+- [x] Page uses PageHeader component
+- [x] Content wrapped in shadcn/ui Card components
+- [x] Selected keepers table uses shadcn/ui Table, Badge, Button
+- [x] Eligible players table uses shadcn/ui Table, Badge, Button, Select
+- [x] Conflict alert uses Forest theme error colors
+- [x] Deadline banner uses Forest theme colors per state
+- [x] Old inline navigation removed
+- [x] All actions still work (select, remove, bump, finalize)
+- [x] Filtering and sorting still work
+- [x] Responsive on mobile
+- [x] No TypeScript errors
+- [x] Visual consistency with My Team page (TASK-501e)
+
+**Completion Note:** Completed January 2026. Keepers page restyled with shadcn/ui Card, Table, Badge, Button, Select. Deadline banner uses semantic Forest colors.
+
+---
+
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓
 
 **Production Data Status (2026-01-21):**
 - All 2023, 2024, 2025 draft and FA data imported

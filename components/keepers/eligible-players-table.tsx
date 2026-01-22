@@ -2,6 +2,23 @@
 
 import { useState, useMemo } from "react";
 import { EligiblePlayer } from "@/lib/keeper/selection-types";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type SortField = "name" | "position" | "keeperCost";
 type SortDirection = "asc" | "desc";
@@ -94,12 +111,12 @@ export function EligiblePlayersTable({
     }
   };
 
-  const SortIcon = ({ field }: { field: SortField }) => {
+  const SortIndicator = ({ field }: { field: SortField }) => {
     if (sortField !== field) {
-      return <span className="text-zinc-400 ml-1">↕</span>;
+      return <span className="ml-1 text-muted-foreground/50">↕</span>;
     }
     return (
-      <span className="text-blue-500 ml-1">
+      <span className="ml-1 text-primary">
         {sortDirection === "asc" ? "↑" : "↓"}
       </span>
     );
@@ -118,142 +135,135 @@ export function EligiblePlayersTable({
 
   if (players.length === 0) {
     return (
-      <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
+      <div className="text-center py-8 text-muted-foreground">
         No eligible players on roster.
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-4">
+      <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
-          <label
-            htmlFor="position-filter"
-            className="text-sm text-zinc-600 dark:text-zinc-400"
-          >
-            Position:
-          </label>
-          <select
-            id="position-filter"
-            value={positionFilter}
-            onChange={(e) => setPositionFilter(e.target.value)}
-            className="px-3 py-1.5 text-sm bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-900 dark:text-zinc-100"
-          >
-            <option value="all">All Positions</option>
-            {positions.map((pos) => (
-              <option key={pos} value={pos}>
-                {pos}
-              </option>
-            ))}
-          </select>
+          <label className="text-sm text-muted-foreground">Position:</label>
+          <Select value={positionFilter} onValueChange={setPositionFilter}>
+            <SelectTrigger className="w-[140px] h-9 bg-background border-border">
+              <SelectValue placeholder="All Positions" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Positions</SelectItem>
+              {positions.map((pos) => (
+                <SelectItem key={pos} value={pos}>
+                  {pos}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="text-sm text-zinc-500 dark:text-zinc-400 ml-auto">
+        <div className="text-sm text-muted-foreground ml-auto">
           {unselectedPlayers.length} available
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-zinc-200 dark:border-zinc-700">
-              <th
-                className="text-left py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
+      <div className="rounded-md border border-border overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
+              <TableHead
+                className="cursor-pointer hover:text-foreground transition-colors py-3"
                 onClick={() => handleSort("name")}
               >
                 Player
-                <SortIcon field="name" />
-              </th>
-              <th
-                className="text-left py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
+                <SortIndicator field="name" />
+              </TableHead>
+              <TableHead
+                className="cursor-pointer hover:text-foreground transition-colors py-3"
                 onClick={() => handleSort("position")}
               >
                 Pos
-                <SortIcon field="position" />
-              </th>
-              <th
-                className="text-center py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
+                <SortIndicator field="position" />
+              </TableHead>
+              <TableHead
+                className="text-center cursor-pointer hover:text-foreground transition-colors py-3"
                 onClick={() => handleSort("keeperCost")}
               >
                 Keeper Cost
-                <SortIcon field="keeperCost" />
-              </th>
+                <SortIndicator field="keeperCost" />
+              </TableHead>
               {!isFinalized && (
-                <th className="text-center py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300">
-                  Action
-                </th>
+                <TableHead className="text-center py-3">Action</TableHead>
               )}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {displayedPlayers.map((item) => {
               const isLoading = loadingPlayerId === item.player.id;
               const isBestValue =
                 !item.isSelected && item.keeperCost >= bestValueThreshold;
 
               return (
-                <tr
+                <TableRow
                   key={item.player.id}
-                  className={`border-b border-zinc-100 dark:border-zinc-700/50 ${
-                    item.isSelected
-                      ? "bg-green-50/50 dark:bg-green-900/10 opacity-50"
-                      : "bg-white dark:bg-zinc-800"
+                  className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${
+                    item.isSelected ? "bg-success/5 opacity-50" : ""
                   }`}
                 >
-                  <td className="py-3 px-2">
+                  <TableCell className="py-4">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                      <span className="font-medium text-foreground">
                         {item.player.firstName} {item.player.lastName}
                       </span>
                       {isBestValue && (
-                        <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded">
+                        <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10 text-xs">
                           Best Value
-                        </span>
+                        </Badge>
                       )}
                       {item.isSelected && (
-                        <span className="px-1.5 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded">
+                        <Badge className="bg-success/20 text-success hover:bg-success/30 border-0 text-xs">
                           Selected
-                        </span>
+                        </Badge>
                       )}
                     </div>
-                  </td>
-                  <td className="py-3 px-2 text-zinc-600 dark:text-zinc-400">
+                  </TableCell>
+                  <TableCell className="py-4 text-muted-foreground">
                     {item.player.position}
-                  </td>
-                  <td className="py-3 px-2 text-center">
-                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  </TableCell>
+                  <TableCell className="py-4 text-center">
+                    <span className="font-semibold text-foreground">
                       Round {item.keeperCost}
                     </span>
-                  </td>
+                  </TableCell>
                   {!isFinalized && (
-                    <td className="py-3 px-2 text-center">
+                    <TableCell className="py-4 text-center">
                       {item.isSelected ? (
-                        <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                        <span className="text-sm text-muted-foreground">
                           Already selected
                         </span>
                       ) : (
-                        <button
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleSelect(item.player.id)}
                           disabled={isLoading || !canSelectMore}
-                          className="px-3 py-1 text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          className="h-7 px-3 text-xs border-success/50 text-success hover:bg-success/10"
                         >
                           {isLoading ? "..." : "Select"}
-                        </button>
+                        </Button>
                       )}
-                    </td>
+                    </TableCell>
                   )}
-                </tr>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {unselectedPlayers.length === 0 && (
-        <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
+        <div className="text-center py-8 text-muted-foreground">
           No available players match the current filters.
         </div>
       )}
