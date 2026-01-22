@@ -19,6 +19,7 @@ model User {
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   teams     Team[]
+  slots     TeamSlot[]
   auditLogs AuditLog[]
 
   @@map("users")
@@ -28,10 +29,16 @@ model User {
 
 model TeamSlot {
   id        Int      @id                    // 1-10, permanent league positions
+  managerId String?  @map("manager_id")
   createdAt DateTime @default(now()) @map("created_at")
 
-  aliases TeamAlias[]
-  teams   Team[]
+  manager      User?               @relation(fields: [managerId], references: [id])
+  aliases      TeamAlias[]
+  teams        Team[]
+  acquisitions PlayerAcquisition[]
+  keepers      KeeperSelection[]
+  overrides    KeeperOverride[]
+  draftOrders  DraftOrder[]
 
   @@map("team_slots")
 }
@@ -111,6 +118,7 @@ model PlayerAcquisition {
   id               String    @id @default(cuid())
   playerId         String    @map("player_id")
   teamId           String    @map("team_id")
+  slotId           Int?      @map("slot_id")
   seasonYear       Int       @map("season_year")
   acquisitionType  String    @map("acquisition_type")
   draftRound       Int?      @map("draft_round")
@@ -123,6 +131,7 @@ model PlayerAcquisition {
 
   player  Player            @relation(fields: [playerId], references: [id])
   team    Team              @relation(fields: [teamId], references: [id])
+  slot    TeamSlot?         @relation(fields: [slotId], references: [id])
   keepers KeeperSelection[]
 
   @@map("player_acquisitions")
@@ -133,6 +142,7 @@ model PlayerAcquisition {
 model KeeperSelection {
   id                    String    @id @default(cuid())
   teamId                String    @map("team_id")
+  slotId                Int?      @map("slot_id")
   playerId              String    @map("player_id")
   seasonYear            Int       @map("season_year")
   keeperRound           Int       @map("keeper_round")
@@ -144,6 +154,7 @@ model KeeperSelection {
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
   team                Team              @relation(fields: [teamId], references: [id])
+  slot                TeamSlot?         @relation(fields: [slotId], references: [id])
   player              Player            @relation(fields: [playerId], references: [id])
   originalAcquisition PlayerAcquisition @relation(fields: [originalAcquisitionId], references: [id])
 
@@ -158,16 +169,35 @@ model KeeperOverride {
   id            String   @id @default(cuid())
   playerId      String   @map("player_id")
   teamId        String   @map("team_id")
+  slotId        Int?     @map("slot_id")
   seasonYear    Int      @map("season_year")
   overrideRound Int      @map("override_round")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  player Player @relation(fields: [playerId], references: [id])
-  team   Team   @relation(fields: [teamId], references: [id])
+  player Player    @relation(fields: [playerId], references: [id])
+  team   Team      @relation(fields: [teamId], references: [id])
+  slot   TeamSlot? @relation(fields: [slotId], references: [id])
 
   @@unique([playerId, teamId, seasonYear])
   @@map("keeper_overrides")
+}
+
+// ============= DRAFT ORDER =============
+
+model DraftOrder {
+  id         String   @id @default(cuid())
+  slotId     Int      @map("slot_id")
+  seasonYear Int      @map("season_year")
+  position   Int                           // 1-10 draft position
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  slot TeamSlot @relation(fields: [slotId], references: [id])
+
+  @@unique([slotId, seasonYear])           // One position per slot per season
+  @@unique([seasonYear, position])         // No duplicate positions per season
+  @@map("draft_orders")
 }
 
 // ============= LEAGUE RULES =============

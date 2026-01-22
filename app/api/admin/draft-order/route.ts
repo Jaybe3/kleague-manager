@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import {
+  getOrCreateDraftOrder,
+  getDraftOrderWithNames,
+  updateDraftOrder,
+  getSeasonsWithDraftOrder,
+} from "@/lib/slots/draft-order-service";
 import { db } from "@/lib/db";
 
 interface DraftOrderEntry {
@@ -12,7 +18,7 @@ interface PutRequestBody {
   draftOrder: DraftOrderEntry[];
 }
 
-// GET - Get teams with current draft positions for a season
+// GET - Get draft order for a season (uses DraftOrder table)
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -30,20 +36,25 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const yearParam = searchParams.get("year");
 
-    // Get all seasons that have teams (for dropdown)
+    // Get seasons with draft order (from DraftOrder table)
+    const seasonsWithDraftOrder = await getSeasonsWithDraftOrder();
+
+    // Also get seasons with teams (for backwards compatibility and UI)
     const seasonsWithTeams = await db.team.groupBy({
       by: ["seasonYear"],
       orderBy: { seasonYear: "desc" },
     });
+    const teamSeasons = seasonsWithTeams.map((s) => s.seasonYear);
 
-    const availableSeasons = seasonsWithTeams.map((s) => s.seasonYear);
-
-    if (availableSeasons.length === 0) {
-      return NextResponse.json(
-        { error: "No seasons with teams found. Import draft data first." },
-        { status: 404 }
-      );
-    }
+    // Combine: All seasons that have draft order OR teams, plus next year
+    const currentYear = new Date().getFullYear();
+    const nextYear = currentYear + 1;
+    const allSeasons = new Set([
+      ...seasonsWithDraftOrder,
+      ...teamSeasons,
+      nextYear, // Always include next year for future planning
+    ]);
+    const availableSeasons = Array.from(allSeasons).sort((a, b) => b - a);
 
     // Determine which season to fetch
     let seasonYear: number;
@@ -56,32 +67,25 @@ export async function GET(request: NextRequest) {
         );
       }
     } else {
-      // Default to the most recent season that has teams
-      seasonYear = availableSeasons[0];
+      // Default to next year (most useful for planning)
+      seasonYear = nextYear;
     }
 
-    // Get all teams for this season
-    const teams = await db.team.findMany({
-      where: { seasonYear },
-      orderBy: { draftPosition: "asc" },
-      select: {
-        id: true,
-        teamName: true,
-        slotId: true,
-        draftPosition: true,
-        seasonYear: true,
-      },
-    });
+    // Get or create draft order for this season
+    // This will auto-create from previous season if needed
+    await getOrCreateDraftOrder(seasonYear);
 
-    // Handle case where requested season has no teams
-    if (teams.length === 0) {
-      return NextResponse.json({
-        seasonYear,
-        teams: [],
-        availableSeasons,
-        error: `No teams found for season ${seasonYear}`,
-      });
-    }
+    // Get draft order with team names
+    const draftOrderWithNames = await getDraftOrderWithNames(seasonYear);
+
+    // Transform to expected format
+    const teams = draftOrderWithNames.map((order) => ({
+      id: `slot-${order.slotId}`, // Use slot-based ID since we may not have teams
+      teamName: order.teamName,
+      slotId: order.slotId,
+      draftPosition: order.position,
+      seasonYear,
+    }));
 
     return NextResponse.json({
       seasonYear,
@@ -97,7 +101,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT - Update draft positions for a season
+// PUT - Update draft order for a season (uses DraftOrder table)
 export async function PUT(request: NextRequest) {
   try {
     const session = await auth();
@@ -167,63 +171,69 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Get teams for the season to verify they exist
-    const teams = await db.team.findMany({
-      where: { seasonYear },
-      select: { id: true, slotId: true },
+    // Validate all slotIds are valid (1-10 and exist in TeamSlot)
+    const slots = await db.teamSlot.findMany({
+      select: { id: true },
     });
+    const validSlotIds = new Set(slots.map((s) => s.id));
 
-    if (teams.length !== 10) {
-      return NextResponse.json(
-        { error: `Expected 10 teams for season ${seasonYear}, found ${teams.length}` },
-        { status: 400 }
-      );
-    }
-
-    // Create a map of slotId -> teamId
-    const slotToTeamId = new Map<number, string>();
-    for (const team of teams) {
-      slotToTeamId.set(team.slotId, team.id);
-    }
-
-    // Validate all slotIds in draftOrder correspond to existing teams
     for (const entry of draftOrder) {
-      if (!slotToTeamId.has(entry.slotId)) {
+      if (!validSlotIds.has(entry.slotId)) {
         return NextResponse.json(
-          { error: `No team found with slotId ${entry.slotId} for season ${seasonYear}` },
+          { error: `Invalid slotId ${entry.slotId}` },
           { status: 400 }
         );
       }
     }
 
-    // Update all teams in a transaction
-    await db.$transaction(
-      draftOrder.map((entry) => {
-        const teamId = slotToTeamId.get(entry.slotId)!;
-        return db.team.update({
-          where: { id: teamId },
-          data: { draftPosition: entry.draftPosition },
-        });
-      })
-    );
+    // Update DraftOrder table
+    const entries = draftOrder.map((e) => ({
+      slotId: e.slotId,
+      position: e.draftPosition,
+    }));
+    await updateDraftOrder(seasonYear, entries);
 
-    // Fetch updated teams
-    const updatedTeams = await db.team.findMany({
+    // Also update Team.draftPosition if teams exist for this season (backwards compatibility)
+    const teamsForSeason = await db.team.findMany({
       where: { seasonYear },
-      orderBy: { draftPosition: "asc" },
-      select: {
-        id: true,
-        teamName: true,
-        slotId: true,
-        draftPosition: true,
-        seasonYear: true,
-      },
+      select: { id: true, slotId: true },
     });
+
+    if (teamsForSeason.length > 0) {
+      const slotToTeamId = new Map<number, string>();
+      for (const team of teamsForSeason) {
+        slotToTeamId.set(team.slotId, team.id);
+      }
+
+      // Update Team.draftPosition for existing teams
+      await db.$transaction(
+        draftOrder
+          .filter((entry) => slotToTeamId.has(entry.slotId))
+          .map((entry) => {
+            const teamId = slotToTeamId.get(entry.slotId)!;
+            return db.team.update({
+              where: { id: teamId },
+              data: { draftPosition: entry.draftPosition },
+            });
+          })
+      );
+    }
+
+    // Fetch updated draft order with names
+    const updatedOrder = await getDraftOrderWithNames(seasonYear);
+
+    const teams = updatedOrder.map((order) => ({
+      id: `slot-${order.slotId}`,
+      teamName: order.teamName,
+      slotId: order.slotId,
+      draftPosition: order.position,
+      seasonYear,
+    }));
 
     return NextResponse.json({
       success: true,
       seasonYear,
-      teams: updatedTeams,
+      teams,
     });
   } catch (error) {
     console.error("Error updating draft order:", error);

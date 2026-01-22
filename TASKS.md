@@ -1509,7 +1509,7 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓, TASK-501h ✓, TASK-501i ✓, TASK-501j ✓, TASK-501k ✓, TASK-501l ✓, TASK-501m ✓
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓, TASK-501h ✓, TASK-501i ✓, TASK-501j ✓, TASK-501k ✓, TASK-501l ✓, TASK-501m ✓, TASK-600a ✓, TASK-600b ✓
 
 **Production Data Status (2026-01-21):**
 - All 2023, 2024, 2025 draft and FA data imported
@@ -1644,7 +1644,7 @@ Current trade entry form has UX issues:
 
 ### BUG-002: Cannot Set Draft Order or Keepers for Future Season
 **Priority:** High
-**Status:** BACKLOG
+**Status:** SUPERSEDED by TASK-600a
 **Type:** Bug
 
 **Problem:**
@@ -1672,3 +1672,313 @@ Draft order page and keeper selection only work for seasons that have teams. But
 - Discovered during TASK-501j
 - Blocks 2026 draft preparation
 - Should be addressed before next draft season
+- **SUPERSEDED:** This is being addressed by Phase 6 refactor (TASK-600a+)
+
+---
+
+## Phase 6: Data Model Refactor & Keeper Calculation Fixes
+
+### Overview
+
+**Problem Statement:**
+
+1. **Team-as-Intermediary Issue (BUG-002):** Current model uses `Team` as the intermediary between slots and data (acquisitions, keepers, overrides). Teams only exist after draft import, blocking draft preparation for future seasons. Cannot set 2026 draft order or select 2026 keepers because no 2026 teams exist.
+
+2. **Keeper Calculation Bug:** Current algorithm finds EARLIEST acquisition on slot, but doesn't detect "chain breaks" - when a player is NOT kept one year, they should get a clean slate if re-drafted/acquired later.
+
+**Solution:**
+- Refactor to slot-centric model where `slotId` is the primary identifier
+- Add `DraftOrder` table separate from Team
+- Move `managerId` from Team to TeamSlot (managers own slots, not seasonal teams)
+- Fix keeper calculation to detect chain breaks
+- Re-import all data with new model
+
+**Approach:** Non-breaking additions first, then gradual migration, then cleanup.
+
+---
+
+### TASK-600a: Schema Additions (Non-Breaking)
+**Status:** COMPLETED
+**Completed:** January 2026
+**Priority:** High
+**Depends On:** None
+**Part Of:** Phase 6 Schema Refactor
+
+**Objective:** Add `slotId` columns (nullable) to PlayerAcquisition, KeeperSelection, KeeperOverride. Create DraftOrder table. Add `managerId` to TeamSlot. All additions are non-breaking - existing code continues to work with `teamId`.
+
+#### Schema Changes
+
+**1. PlayerAcquisition - Add slotId:**
+```prisma
+model PlayerAcquisition {
+  // ... existing fields ...
+  slotId  Int?      @map("slot_id")    // NEW - nullable during migration
+
+  // ... existing relations ...
+  slot    TeamSlot? @relation(fields: [slotId], references: [id])  // NEW
+}
+```
+
+**2. KeeperSelection - Add slotId:**
+```prisma
+model KeeperSelection {
+  // ... existing fields ...
+  slotId  Int?      @map("slot_id")    // NEW - nullable during migration
+
+  // ... existing relations ...
+  slot    TeamSlot? @relation(fields: [slotId], references: [id])  // NEW
+}
+```
+
+**3. KeeperOverride - Add slotId:**
+```prisma
+model KeeperOverride {
+  // ... existing fields ...
+  slotId  Int?      @map("slot_id")    // NEW - nullable during migration
+
+  // ... existing relations ...
+  slot    TeamSlot? @relation(fields: [slotId], references: [id])  // NEW
+}
+```
+
+**4. TeamSlot - Add managerId and reverse relations:**
+```prisma
+model TeamSlot {
+  id        Int      @id
+  managerId String?  @map("manager_id")  // NEW
+  createdAt DateTime @default(now()) @map("created_at")
+
+  manager      User?               @relation(fields: [managerId], references: [id])  // NEW
+  aliases      TeamAlias[]
+  teams        Team[]
+  acquisitions PlayerAcquisition[]  // NEW reverse relation
+  keepers      KeeperSelection[]    // NEW reverse relation
+  overrides    KeeperOverride[]     // NEW reverse relation
+  draftOrders  DraftOrder[]         // NEW reverse relation
+}
+```
+
+**5. User - Add slots reverse relation:**
+```prisma
+model User {
+  // ... existing fields ...
+  slots     TeamSlot[]  // NEW reverse relation
+}
+```
+
+**6. New DraftOrder Model:**
+```prisma
+model DraftOrder {
+  id         String   @id @default(cuid())
+  slotId     Int      @map("slot_id")
+  seasonYear Int      @map("season_year")
+  position   Int                           // 1-10 draft position
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  slot TeamSlot @relation(fields: [slotId], references: [id])
+
+  @@unique([slotId, seasonYear])           // One position per slot per season
+  @@unique([seasonYear, position])         // No duplicate positions per season
+  @@map("draft_orders")
+}
+```
+
+#### Files to Modify
+| File | Change |
+|------|--------|
+| `prisma/schema.prisma` | Add all schema changes above |
+
+#### Acceptance Criteria
+- [x] `slot_id` column added to `player_acquisitions` table (nullable)
+- [x] `slot_id` column added to `keeper_selections` table (nullable)
+- [x] `slot_id` column added to `keeper_overrides` table (nullable)
+- [x] `manager_id` column added to `team_slots` table (nullable)
+- [x] `draft_orders` table created with unique constraints
+- [x] All Prisma relations defined correctly (no TypeScript errors)
+- [x] `npx prisma db push` runs without errors
+- [x] Existing data preserved (all 1,521 acquisitions still exist)
+- [x] Existing application still works (non-breaking change)
+
+#### Verification Commands
+```bash
+# Check migration status
+npx prisma migrate status
+
+# Verify columns exist and data preserved
+npx tsx -e '
+import { PrismaClient } from "@prisma/client";
+const p = new PrismaClient();
+async function main() {
+  const acqCount = await p.playerAcquisition.count();
+  const keeperCount = await p.keeperSelection.count();
+  const overrideCount = await p.keeperOverride.count();
+  console.log("PlayerAcquisition count:", acqCount);
+  console.log("KeeperSelection count:", keeperCount);
+  console.log("KeeperOverride count:", overrideCount);
+
+  // Verify new columns exist (will be null)
+  const sample = await p.playerAcquisition.findFirst();
+  console.log("Sample acquisition slotId:", sample?.slotId);
+
+  // Verify DraftOrder table exists
+  const draftOrderCount = await p.draftOrder.count();
+  console.log("DraftOrder count:", draftOrderCount);
+
+  await p.$disconnect();
+}
+main();
+'
+```
+
+#### Notes
+- All new columns are nullable to avoid breaking existing data
+- Existing `teamId` relations remain functional
+- Next task (TASK-600b) will backfill `slotId` from existing `team.slotId`
+- Final task will make `slotId` required and optionally deprecate `teamId`
+
+**Completion Note:** Completed January 2026. Used `prisma db push` instead of `migrate dev` due to sqlite→postgresql provider change in migration history. All new columns added successfully, existing data preserved (1,521 acquisitions, 5 keeper selections, 1 override).
+
+---
+
+### TASK-600b: Data Backfill
+**Status:** COMPLETED
+**Completed:** January 2026
+**Priority:** High
+**Depends On:** TASK-600a
+**Part Of:** Phase 6 Schema Refactor
+
+**Objective:** Populate `slotId` on all existing PlayerAcquisition, KeeperSelection, and KeeperOverride records from their associated `Team.slotId`. Create DraftOrder records from existing `Team.draftPosition`. Move `managerId` from Team to TeamSlot.
+
+#### Script to Create
+`scripts/backfill-slot-ids.ts`
+
+#### Script Logic
+1. **PlayerAcquisition:** For each record, set `slotId = team.slotId` (via teamId relation)
+2. **KeeperSelection:** For each record, set `slotId = team.slotId`
+3. **KeeperOverride:** For each record, set `slotId = team.slotId`
+4. **DraftOrder:** For each Team with `draftPosition`, create DraftOrder record (`slotId`, `seasonYear`, `position`)
+5. **TeamSlot.managerId:** For each Team with `managerId`, update corresponding `TeamSlot.managerId` (use most recent season if multiple teams have the same manager)
+
+#### Files to Create
+| File | Purpose |
+|------|---------|
+| `scripts/backfill-slot-ids.ts` | One-time migration script |
+
+#### Acceptance Criteria
+- [x] All 1,521 PlayerAcquisition records have `slotId` populated (0 nulls)
+- [x] All 5 KeeperSelection records have `slotId` populated
+- [x] All 1 KeeperOverride record has `slotId` populated
+- [x] 30 DraftOrder records created (10 slots × 3 seasons)
+- [x] TeamSlot id=10 has `managerId` set (the only slot with a manager)
+- [x] Script is idempotent (safe to run multiple times)
+
+#### Verification Commands
+```bash
+npx tsx -e '
+import { PrismaClient } from "@prisma/client";
+const p = new PrismaClient();
+async function main() {
+  const nullCount = await p.playerAcquisition.count({ where: { slotId: null } });
+  const totalCount = await p.playerAcquisition.count();
+  console.log(`PlayerAcquisition: ${totalCount - nullCount}/${totalCount} have slotId`);
+
+  const keeperNullCount = await p.keeperSelection.count({ where: { slotId: null } });
+  const keeperTotal = await p.keeperSelection.count();
+  console.log(`KeeperSelection: ${keeperTotal - keeperNullCount}/${keeperTotal} have slotId`);
+
+  const overrideNullCount = await p.keeperOverride.count({ where: { slotId: null } });
+  const overrideTotal = await p.keeperOverride.count();
+  console.log(`KeeperOverride: ${overrideTotal - overrideNullCount}/${overrideTotal} have slotId`);
+
+  const draftOrderCount = await p.draftOrder.count();
+  console.log(`DraftOrder count: ${draftOrderCount}`);
+
+  const slot10 = await p.teamSlot.findUnique({ where: { id: 10 } });
+  console.log(`TeamSlot 10 managerId: ${slot10?.managerId}`);
+
+  await p.$disconnect();
+}
+main();
+'
+```
+
+#### Notes
+- Script must handle existing DraftOrder records (upsert to be idempotent)
+- Only slot 10 has a managerId in the current data (verified in earlier audit)
+- After backfill, slotId can be made required in future task (TASK-600c)
+
+**Completion Note:** Completed January 2026. All 1,521 acquisitions, 5 keeper selections, and 1 override now have slotId populated. 30 DraftOrder records created (10 slots × 3 seasons). TeamSlot 10 has managerId set. Script verified idempotent.
+
+---
+
+### TASK-600c: Code Migration - Use slotId Instead of teamId
+**Status:** IN PROGRESS
+**Priority:** High
+**Depends On:** TASK-600b
+**Part Of:** Phase 6 Schema Refactor
+
+**Objective:** Update all application code to query by `slotId` instead of `teamId`. Update draft order management to use DraftOrder table. Enable draft order and keeper selection for future seasons (fixes BUG-002).
+
+#### Key Logic Changes
+
+1. **Finding User's Slot:** Query `TeamSlot.managerId` instead of `Team.managerId`
+2. **Getting Team Name:** Create helper to query `TeamAlias` by `slotId` + `seasonYear`
+3. **Draft Order:** Use `DraftOrder` table; auto-create for new seasons by copying previous
+4. **Keeper Queries:** Query `PlayerAcquisition` by `slotId`, not `teamId`
+5. **Importer Updates:** Resolve unknown team names via `DraftOrder` position
+
+#### Files to Create
+| File | Purpose |
+|------|---------|
+| `lib/slots/index.ts` | Slot helper functions |
+| `lib/slots/draft-order-service.ts` | Draft order CRUD + auto-create logic |
+
+#### Files to Modify
+| File | Change |
+|------|--------|
+| `lib/keeper/service.ts` | Query by slotId |
+| `lib/keeper/selection-service.ts` | Use slotId for selections |
+| `lib/keeper/db.ts` | Update queries |
+| `lib/importers/draft-importer.ts` | Write slotId, auto-create TeamAlias |
+| `lib/importers/transaction-importer.ts` | Write slotId |
+| `lib/importers/team-mapper.ts` | Add DraftOrder-based resolution |
+| `app/api/my-team/keepers/route.ts` | Find slot via TeamSlot.managerId |
+| `app/api/my-team/keepers/[playerId]/route.ts` | Use slotId |
+| `app/api/my-team/keepers/bump/route.ts` | Use slotId |
+| `app/api/my-team/keepers/finalize/route.ts` | Use slotId |
+| `app/api/admin/draft-order/route.ts` | Use DraftOrder table |
+| `app/api/admin/keeper-overrides/route.ts` | Use slotId |
+| `app/api/draft-board/route.ts` | Query DraftOrder + TeamAlias |
+
+#### Acceptance Criteria
+- [ ] All keeper service queries use slotId
+- [ ] All keeper selection APIs work with slotId
+- [ ] Draft order page works for 2026 (no teams required)
+- [ ] Draft order auto-copies from previous season if none exists
+- [ ] Draft board displays correctly using DraftOrder + TeamAlias
+- [ ] Importer writes slotId on all new acquisitions
+- [ ] Importer auto-creates TeamAlias for unknown names (using draft position)
+- [ ] Importer fails with clear error if draft order not set
+- [ ] TypeScript compiles without errors
+- [ ] All existing functionality still works
+
+#### Verification Commands
+```bash
+# TypeScript compilation
+npx tsc --noEmit
+
+# Run tests
+npm test
+
+# Manual verification:
+# 1. Go to /admin/draft-order, select 2026, verify UI works
+# 2. Go to /my-team/keepers, verify roster displays
+# 3. Go to /draft-board, verify board displays correctly
+```
+
+#### Notes
+- This is the largest task in Phase 6 - updates many files
+- Implementation order: Create new lib/slots/ files first, then update lib/keeper/, then lib/importers/, then API routes
+- Team table remains for backward compatibility but is no longer the primary reference
+- After this task, slotId columns can be made required (TASK-600d)

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { DraftBoardResponse } from "@/lib/draft-board/types";
+import {
+  getOrCreateDraftOrder,
+  getDraftOrderWithNames,
+  getSeasonsWithDraftOrder,
+} from "@/lib/slots/draft-order-service";
 
 // GET - Get draft board data for a season
 export async function GET(request: NextRequest) {
@@ -14,19 +19,29 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const yearParam = searchParams.get("year");
 
-    // Find all seasons that have teams (draft board year = team year + 1)
-    // Teams are stored by the year they played, draft board shows keepers for NEXT year
+    // Get seasons from DraftOrder table (includes future seasons)
+    const seasonsWithDraftOrder = await getSeasonsWithDraftOrder();
+
+    // Also get seasons with teams (for backwards compatibility)
     const seasonsWithTeams = await db.team.groupBy({
       by: ["seasonYear"],
       orderBy: { seasonYear: "desc" },
     });
+    const teamSeasons = seasonsWithTeams.map((s) => s.seasonYear + 1); // Draft board = teams + 1
 
-    // Available draft board years = team years + 1
-    const availableSeasons = seasonsWithTeams.map((s) => s.seasonYear + 1);
+    // Combine and add next year
+    const currentYear = new Date().getFullYear();
+    const nextYear = currentYear + 1;
+    const allSeasons = new Set([
+      ...seasonsWithDraftOrder,
+      ...teamSeasons,
+      nextYear,
+    ]);
+    const availableSeasons = Array.from(allSeasons).sort((a, b) => b - a);
 
     if (availableSeasons.length === 0) {
       return NextResponse.json(
-        { error: "No seasons with teams found. Import draft data first." },
+        { error: "No seasons available. Import draft data first." },
         { status: 404 }
       );
     }
@@ -42,7 +57,7 @@ export async function GET(request: NextRequest) {
         );
       }
     } else {
-      // Default to the latest draft board year that has team data
+      // Default to the latest available year
       targetYear = availableSeasons[0];
     }
 
@@ -52,10 +67,7 @@ export async function GET(request: NextRequest) {
     });
 
     // If season doesn't exist in Season table, create a minimal object
-    // (Draft board can show even if Season record doesn't exist yet)
-    const previousYear = targetYear - 1;
     if (!season) {
-      // Use default values for future seasons
       season = {
         id: "future",
         year: targetYear,
@@ -68,27 +80,19 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Get all teams from the previous season (they hold next year's keepers)
-    const teams = await db.team.findMany({
-      where: { seasonYear: previousYear },
-      orderBy: { draftPosition: "asc" },
-      select: {
-        id: true,
-        teamName: true,
-        slotId: true,
-        draftPosition: true,
-      },
-    });
+    // Get or create draft order for target year
+    await getOrCreateDraftOrder(targetYear);
 
-    if (teams.length === 0) {
-      return NextResponse.json({
-        season: { year: targetYear, totalRounds: season.totalRounds },
-        teams: [],
-        keepers: [],
-        availableSeasons,
-        error: `No teams found for season ${previousYear}`,
-      });
-    }
+    // Get draft order with team names (uses TeamAlias for names)
+    const draftOrderWithNames = await getDraftOrderWithNames(targetYear);
+
+    // Transform to expected format
+    const teams = draftOrderWithNames.map((order) => ({
+      id: `slot-${order.slotId}`,
+      teamName: order.teamName,
+      slotId: order.slotId,
+      draftPosition: order.position,
+    }));
 
     // Get all finalized keeper selections for the target season
     const keeperSelections = await db.keeperSelection.findMany({
@@ -107,14 +111,16 @@ export async function GET(request: NextRequest) {
         team: {
           select: {
             id: true,
+            slotId: true,
           },
         },
       },
     });
 
     // Transform keeper selections to response format
+    // Use slotId to match with teams since team.id may not exist for future years
     const keepers = keeperSelections.map((ks) => ({
-      teamId: ks.teamId,
+      teamId: `slot-${ks.slotId ?? ks.team.slotId}`, // Use slotId if available, fallback to team.slotId
       playerId: ks.playerId,
       playerName: `${ks.player.firstName} ${ks.player.lastName}`,
       position: ks.player.position,
@@ -126,12 +132,7 @@ export async function GET(request: NextRequest) {
         year: season.year,
         totalRounds: season.totalRounds,
       },
-      teams: teams.map((t) => ({
-        id: t.id,
-        teamName: t.teamName,
-        slotId: t.slotId,
-        draftPosition: t.draftPosition,
-      })),
+      teams,
       keepers,
       availableSeasons,
     };

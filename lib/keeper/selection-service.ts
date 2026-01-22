@@ -274,10 +274,17 @@ export async function selectPlayer(
     return { success: false, error: "No valid acquisition found" };
   }
 
-  // Create selection
+  // Get team to find slotId
+  const team = await db.team.findUnique({
+    where: { id: teamId },
+    select: { slotId: true },
+  });
+
+  // Create selection (include slotId for slot-centric queries)
   const selection = await db.keeperSelection.create({
     data: {
       teamId,
+      slotId: team?.slotId,
       playerId,
       seasonYear: targetYear,
       keeperRound: keeperResult.calculation.keeperRound!,

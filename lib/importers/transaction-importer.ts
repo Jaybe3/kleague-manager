@@ -184,10 +184,14 @@ export async function importTransactions(
           },
         });
 
+        // Get slotId for this team
+        const slotId = await getSlotIdFromTeamName(tx.teamName, tx.seasonYear);
+
         await db.playerAcquisition.create({
           data: {
             playerId,
             teamId,
+            slotId,
             seasonYear: tx.seasonYear,
             acquisitionType: "FA",
             draftRound: null, // FAs have no draft round
@@ -260,10 +264,14 @@ export async function importTransactions(
           },
         });
 
+        // Get slotId for this team (may already have it from above)
+        const tradeSlotId = await getSlotIdFromTeamName(tx.teamName, tx.seasonYear);
+
         await db.playerAcquisition.create({
           data: {
             playerId,
             teamId,
+            slotId: tradeSlotId,
             seasonYear: tx.seasonYear,
             acquisitionType: "TRADE",
             draftRound: originalAcquisition?.draftRound ?? null,

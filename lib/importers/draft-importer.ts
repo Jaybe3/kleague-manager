@@ -245,11 +245,15 @@ export async function importDraftPicks(
         continue;
       }
 
-      // Create acquisition record
+      // Get slotId for this team
+      const slotId = await getSlotIdFromTeamName(pick.teamName, pick.seasonYear);
+
+      // Create acquisition record (include slotId for slot-centric queries)
       await db.playerAcquisition.create({
         data: {
           playerId,
           teamId,
+          slotId,
           seasonYear: pick.seasonYear,
           acquisitionType: "DRAFT",
           draftRound: pick.draftRound,
