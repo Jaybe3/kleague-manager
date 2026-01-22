@@ -1383,7 +1383,48 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓, TASK-501h ✓, TASK-501i ✓, TASK-501j ✓
+### TASK-501k: Restyle Admin Keeper Overrides Page
+**Status:** COMPLETED
+**Completed:** January 2026
+**Depends On:** TASK-501j
+
+**Objective:** Apply Forest theme and shadcn/ui components to Admin Keeper Overrides page.
+
+#### Requirements
+- Use PageHeader component from layout
+- Use shadcn/ui Card for content sections
+- Use shadcn/ui Select for dropdowns (season, team, player)
+- Use shadcn/ui Input for override round input
+- Use shadcn/ui Button for actions
+- Use shadcn/ui Table for existing overrides list (styling only, not component)
+- Use shadcn/ui Badge for round indicator
+- Remove old inline navigation (handled by AppShell)
+- Maintain all existing functionality (add/delete overrides)
+- Apply Forest theme colors consistently
+- Success/error messages use Forest semantic colors
+
+#### Files Modified
+| File | Change |
+|------|--------|
+| `app/(dashboard)/admin/keeper-overrides/page.tsx` | Restyled with shadcn/ui Card, Select, Input, Button; Forest semantic colors |
+
+#### Acceptance Criteria
+- [x] Page uses PageHeader component
+- [x] All dropdowns use shadcn/ui Select
+- [x] Input uses shadcn/ui Input
+- [x] Buttons use shadcn/ui Button
+- [x] Adding override still works
+- [x] Deleting override still works
+- [x] Success/error states use Forest semantic colors
+- [x] Old inline navigation removed
+- [x] Responsive on mobile
+- [x] No TypeScript errors
+
+**Completion Note:** Completed January 2026. Keeper Overrides page restyled with shadcn/ui Card, Select, Input, Button. Forest theme applied throughout.
+
+---
+
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓, TASK-501h ✓, TASK-501i ✓, TASK-501j ✓, TASK-501k ✓
 
 **Production Data Status (2026-01-21):**
 - All 2023, 2024, 2025 draft and FA data imported
