@@ -1424,7 +1424,56 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓, TASK-501h ✓, TASK-501i ✓, TASK-501j ✓, TASK-501k ✓
+### TASK-501l: Restyle Admin Rules + Seasons Pages
+**Status:** COMPLETED
+**Completed:** January 2026
+**Depends On:** TASK-501k
+
+**Objective:** Apply Forest theme and shadcn/ui components to Admin Rules Management and Admin Seasons pages.
+
+#### Requirements (Admin Rules)
+- Use PageHeader component from layout
+- Use shadcn/ui Card for content sections
+- Use shadcn/ui Input for form fields
+- Use shadcn/ui Textarea for description fields
+- Use shadcn/ui Button for all actions
+- Remove old inline navigation (handled by AppShell)
+- Maintain all functionality (view, add, edit, delete, toggle rules)
+- Apply Forest theme colors consistently
+- Success/error messages use Forest semantic colors
+
+#### Requirements (Admin Seasons)
+- Use PageHeader component from layout
+- Use shadcn/ui Card for content sections
+- Use shadcn/ui Input for date/time editing
+- Use shadcn/ui Button for all actions
+- Remove old inline navigation (handled by AppShell)
+- Maintain all functionality (view, edit deadlines)
+- Apply Forest theme colors consistently (deadline states)
+- Success/error messages use Forest semantic colors
+
+#### Files Modified
+| File | Change |
+|------|--------|
+| `app/(dashboard)/admin/rules/page.tsx` | Restyled with shadcn/ui Card, Input, Textarea, Button; Forest semantic colors |
+| `app/(dashboard)/admin/seasons/page.tsx` | Restyled with shadcn/ui Card, Input, Button; Forest semantic colors for deadline states |
+
+#### Acceptance Criteria
+- [x] Both pages use PageHeader component
+- [x] Inputs use shadcn/ui Input
+- [x] Buttons use shadcn/ui Button
+- [x] All CRUD operations still work on Rules page
+- [x] Deadline editing still works on Seasons page
+- [x] Success/error states use Forest semantic colors
+- [x] Old inline navigation removed from both pages
+- [x] Responsive on mobile
+- [x] No TypeScript errors
+
+**Completion Note:** Completed January 2026. Admin Rules and Seasons pages restyled with shadcn/ui Card, Table, Input, Button, Badge. Forest theme applied throughout.
+
+---
+
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓, TASK-501h ✓, TASK-501i ✓, TASK-501j ✓, TASK-501k ✓, TASK-501l ✓
 
 **Production Data Status (2026-01-21):**
 - All 2023, 2024, 2025 draft and FA data imported

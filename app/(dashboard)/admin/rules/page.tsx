@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { PageHeader } from "@/components/layout";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
 interface LeagueRule {
   id: string;
@@ -200,263 +205,254 @@ export default function AdminRulesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 p-4 md:p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6">
+      <div className="space-y-6">
+        <PageHeader
+          title="Manage League Rules"
+          description="Loading..."
+        />
+        <Card>
+          <CardContent className="pt-6">
             <div className="animate-pulse">
-              <div className="h-8 bg-zinc-200 dark:bg-zinc-700 rounded w-1/3 mb-4"></div>
+              <div className="h-8 bg-muted rounded w-1/3 mb-4"></div>
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-16 bg-zinc-200 dark:bg-zinc-700 rounded"></div>
+                  <div key={i} className="h-16 bg-muted rounded"></div>
                 ))}
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-4 md:p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                Manage League Rules
-              </h1>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Commissioner: Add, edit, or disable league rules
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
-              >
-                {showAddForm ? "Cancel" : "Add Rule"}
-              </button>
-              <button
-                onClick={() => router.push("/admin/import")}
-                className="px-4 py-2 text-sm bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-md transition-colors"
-              >
-                Back to Admin
-              </button>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Manage League Rules"
+        description="Add, edit, or disable league rules"
+        actions={
+          <Button
+            onClick={() => setShowAddForm(!showAddForm)}
+            variant={showAddForm ? "secondary" : "default"}
+          >
+            {showAddForm ? "Cancel" : "Add Rule"}
+          </Button>
+        }
+      />
+
+      {/* Error */}
+      {error && (
+        <div className="bg-error/10 border border-error/20 rounded-md p-4">
+          <p className="text-error">{error}</p>
+          <button onClick={() => setError(null)} className="mt-2 text-sm text-error/80 underline hover:text-error">
+            Dismiss
+          </button>
         </div>
+      )}
 
-        {/* Error */}
-        {error && (
-          <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-md p-4">
-            <p className="text-red-700 dark:text-red-400">{error}</p>
-            <button onClick={() => setError(null)} className="mt-2 text-sm text-red-600 dark:text-red-400 underline">
-              Dismiss
-            </button>
-          </div>
-        )}
+      {/* Success */}
+      {success && (
+        <div className="bg-success/10 border border-success/20 rounded-md p-4">
+          <p className="text-success">{success}</p>
+        </div>
+      )}
 
-        {/* Success */}
-        {success && (
-          <div className="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-800 rounded-md p-4">
-            <p className="text-green-700 dark:text-green-400">{success}</p>
-          </div>
-        )}
-
-        {/* Add Rule Form */}
-        {showAddForm && (
-          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-4 md:p-6">
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+      {/* Add Rule Form */}
+      {showAddForm && (
+        <Card>
+          <CardContent className="pt-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4">
               Add New Rule
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Code (uppercase, no spaces)
                 </label>
-                <input
+                <Input
                   type="text"
                   value={newCode}
                   onChange={(e) => setNewCode(e.target.value.toUpperCase().replace(/\s+/g, "_"))}
                   placeholder="e.g., NEW_RULE_NAME"
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Effective Season
                 </label>
-                <input
+                <Input
                   type="number"
                   value={newEffectiveSeason}
                   onChange={(e) => setNewEffectiveSeason(e.target.value)}
                   placeholder="e.g., 2026"
-                  min="2023"
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
+                  min={2023}
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Name
                 </label>
-                <input
+                <Input
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="Human-readable rule name"
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Description
                 </label>
-                <textarea
+                <Textarea
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
                   placeholder="Full explanation of the rule"
                   rows={3}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
                 />
               </div>
               <div className="md:col-span-2">
-                <button
+                <Button
                   onClick={addRule}
                   disabled={adding}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors disabled:opacity-50"
                 >
                   {adding ? "Adding..." : "Add Rule"}
-                </button>
+                </Button>
               </div>
             </div>
-          </div>
-        )}
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Rules Table */}
-        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-zinc-50 dark:bg-zinc-900">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                  Rule
-                </th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-zinc-700 dark:text-zinc-300 w-24">
-                  Season
-                </th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-zinc-700 dark:text-zinc-300 w-24">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-zinc-700 dark:text-zinc-300 w-32">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
-              {rules.map((rule) => (
-                <tr key={rule.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                      {rule.name}
-                    </div>
-                    <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                      <code className="bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5 rounded">
-                        {rule.code}
-                      </code>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-center text-zinc-600 dark:text-zinc-400">
-                    {rule.effectiveSeason}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => toggleEnabled(rule)}
-                      className={`px-2 py-1 text-xs font-medium rounded-full transition-colors ${
-                        rule.enabled
-                          ? "bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900"
-                          : "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-600"
-                      }`}
-                    >
-                      {rule.enabled ? "Enabled" : "Disabled"}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex justify-center gap-1">
-                      <button
-                        onClick={() => openEditModal(rule)}
-                        className="px-2 py-1 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => deleteRule(rule)}
-                        className="px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+      {/* Rules Table */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="overflow-hidden rounded-md border border-border">
+            <table className="w-full">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
+                    Rule
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-foreground w-24">
+                    Season
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-foreground w-24">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-foreground w-32">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rules.map((rule) => (
+                  <tr key={rule.id} className="hover:bg-muted/30">
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-foreground">
+                        {rule.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        <code className="bg-muted px-1 py-0.5 rounded">
+                          {rule.code}
+                        </code>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center text-muted-foreground">
+                      {rule.effectiveSeason}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => toggleEnabled(rule)}
+                        className={`px-2 py-1 text-xs font-medium rounded-full transition-colors ${
+                          rule.enabled
+                            ? "bg-success/20 text-success hover:bg-success/30"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        }`}
+                      >
+                        {rule.enabled ? "Enabled" : "Disabled"}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex justify-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditModal(rule)}
+                          className="text-primary hover:text-primary hover:bg-primary/10"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteRule(rule)}
+                          className="text-error hover:text-error hover:bg-error/10"
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Info Note */}
-        <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-md p-4">
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            <span className="font-medium">Note:</span> Disabling a rule will prevent it
+      {/* Info Note */}
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Note:</span> Disabling a rule will prevent it
             from being enforced in keeper calculations. Founding rules (2023) should
             generally not be deleted as they define core league mechanics.
           </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Edit Modal */}
       {editingRule && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl max-w-lg w-full p-6">
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+          <div className="bg-card border border-border rounded-lg shadow-xl max-w-lg w-full p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4">
               Edit Rule
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Name
                 </label>
-                <input
+                <Input
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Description
                 </label>
-                <textarea
+                <Textarea
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   rows={4}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
                 />
               </div>
               <div className="flex justify-end gap-2">
-                <button
+                <Button
+                  variant="secondary"
                   onClick={closeEditModal}
-                  className="px-4 py-2 text-sm bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-md transition-colors"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={saveEdit}
                   disabled={saving}
-                  className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors disabled:opacity-50"
                 >
                   {saving ? "Saving..." : "Save Changes"}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
