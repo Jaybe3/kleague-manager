@@ -2,6 +2,22 @@
 
 import { useState, useMemo } from "react";
 import type { PlayerKeeperCostResult } from "@/lib/keeper";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type SortField = "name" | "position" | "keeperCost" | "status";
 type SortDirection = "asc" | "desc";
@@ -99,12 +115,12 @@ export function RosterTable({ players, isCommissioner = false }: RosterTableProp
     }
   };
 
-  const SortIcon = ({ field }: { field: SortField }) => {
+  const SortIndicator = ({ field }: { field: SortField }) => {
     if (sortField !== field) {
-      return <span className="text-zinc-400 ml-1">↕</span>;
+      return <span className="ml-1 text-muted-foreground/50">↕</span>;
     }
     return (
-      <span className="text-blue-500 ml-1">
+      <span className="ml-1 text-primary">
         {sortDirection === "asc" ? "↑" : "↓"}
       </span>
     );
@@ -120,88 +136,79 @@ export function RosterTable({ players, isCommissioner = false }: RosterTableProp
   }, [players]);
 
   return (
-    <div>
+    <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-4">
+      <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
-          <label
-            htmlFor="position-filter"
-            className="text-sm text-zinc-600 dark:text-zinc-400"
-          >
-            Position:
-          </label>
-          <select
-            id="position-filter"
-            value={positionFilter}
-            onChange={(e) => setPositionFilter(e.target.value)}
-            className="px-3 py-1.5 text-sm bg-zinc-100 dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-900 dark:text-zinc-100"
-          >
-            <option value="all">All Positions</option>
-            {positions.map((pos) => (
-              <option key={pos} value={pos}>
-                {pos}
-              </option>
-            ))}
-          </select>
+          <label className="text-sm text-muted-foreground">Position:</label>
+          <Select value={positionFilter} onValueChange={setPositionFilter}>
+            <SelectTrigger className="w-[140px] h-9 bg-background border-border">
+              <SelectValue placeholder="All Positions" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Positions</SelectItem>
+              {positions.map((pos) => (
+                <SelectItem key={pos} value={pos}>
+                  {pos}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400 cursor-pointer">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
           <input
             type="checkbox"
             checked={eligibleOnly}
             onChange={(e) => setEligibleOnly(e.target.checked)}
-            className="rounded border-zinc-300 dark:border-zinc-600"
+            className="rounded border-border bg-background"
           />
           Eligible only
         </label>
 
-        <div className="text-sm text-zinc-500 dark:text-zinc-400 ml-auto">
-          Showing {displayedPlayers.length} of {players.length} players
+        <div className="text-sm text-muted-foreground ml-auto">
+          {displayedPlayers.length} of {players.length} players
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-zinc-200 dark:border-zinc-700">
-              <th
-                className="text-left py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
+      <div className="rounded-md border border-border overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
+              <TableHead
+                className="cursor-pointer hover:text-foreground transition-colors py-3"
                 onClick={() => handleSort("name")}
               >
                 Player
-                <SortIcon field="name" />
-              </th>
-              <th
-                className="text-left py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
+                <SortIndicator field="name" />
+              </TableHead>
+              <TableHead
+                className="cursor-pointer hover:text-foreground transition-colors py-3"
                 onClick={() => handleSort("position")}
               >
                 Pos
-                <SortIcon field="position" />
-              </th>
-              <th className="text-left py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300">
-                Acquisition
-              </th>
-              <th className="text-center py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300">
-                Years Kept
-              </th>
-              <th
-                className="text-center py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
+                <SortIndicator field="position" />
+              </TableHead>
+              <TableHead className="py-3">Acquisition</TableHead>
+              <TableHead className="text-center py-3">Years Kept</TableHead>
+              <TableHead
+                className="text-center cursor-pointer hover:text-foreground transition-colors py-3"
                 onClick={() => handleSort("keeperCost")}
               >
                 Keeper Cost
-                <SortIcon field="keeperCost" />
-              </th>
-              <th
-                className="text-center py-3 px-2 font-semibold text-zinc-700 dark:text-zinc-300 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50"
+                <SortIndicator field="keeperCost" />
+              </TableHead>
+              <TableHead
+                className="text-center cursor-pointer hover:text-foreground transition-colors py-3"
                 onClick={() => handleSort("status")}
               >
                 Status
-                <SortIcon field="status" />
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+                <SortIndicator field="status" />
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {displayedPlayers.map((p) => {
               const isBestValue =
                 p.calculation.isEligible &&
@@ -209,67 +216,63 @@ export function RosterTable({ players, isCommissioner = false }: RosterTableProp
                 p.calculation.keeperRound >= bestValueThreshold;
 
               return (
-                <tr
+                <TableRow
                   key={p.player.id}
-                  className={`border-b border-zinc-100 dark:border-zinc-700/50 ${
-                    p.calculation.isEligible
-                      ? "bg-green-50/50 dark:bg-green-900/10"
-                      : "bg-zinc-50/50 dark:bg-zinc-800/50"
-                  }`}
+                  className="border-b border-border/50 hover:bg-muted/20 transition-colors"
                 >
-                  <td className="py-3 px-2">
+                  <TableCell className="py-4">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                      <span className="font-medium text-foreground">
                         {getPlayerName(p)}
                       </span>
                       {isBestValue && (
-                        <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded">
+                        <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10 text-xs">
                           Best Value
-                        </span>
+                        </Badge>
                       )}
                     </div>
-                  </td>
-                  <td className="py-3 px-2 text-zinc-600 dark:text-zinc-400">
+                  </TableCell>
+                  <TableCell className="py-4 text-muted-foreground">
                     {p.player.position}
-                  </td>
-                  <td className="py-3 px-2 text-zinc-600 dark:text-zinc-400">
+                  </TableCell>
+                  <TableCell className="py-4 text-muted-foreground">
                     {getAcquisitionDisplay(p)}
-                  </td>
-                  <td className="py-3 px-2 text-center text-zinc-600 dark:text-zinc-400">
+                  </TableCell>
+                  <TableCell className="py-4 text-center text-muted-foreground">
                     {p.calculation.yearsKept}
-                  </td>
-                  <td className="py-3 px-2 text-center">
+                  </TableCell>
+                  <TableCell className="py-4 text-center">
                     {p.calculation.isEligible ? (
-                      <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                      <span className="font-semibold text-foreground">
                         Round {p.calculation.keeperRound}
                         {isCommissioner && p.calculation.isOverride && (
                           <span className="ml-1" title="Commissioner Override">⚙️</span>
                         )}
                       </span>
                     ) : (
-                      <span className="text-zinc-400 dark:text-zinc-500">—</span>
+                      <span className="text-muted-foreground/50">—</span>
                     )}
-                  </td>
-                  <td className="py-3 px-2 text-center">
+                  </TableCell>
+                  <TableCell className="py-4 text-center">
                     {p.calculation.isEligible ? (
-                      <span className="px-2 py-1 text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 rounded-full">
+                      <Badge className="bg-success/20 text-success hover:bg-success/30 border-0">
                         Eligible
-                      </span>
+                      </Badge>
                     ) : (
-                      <span className="px-2 py-1 text-xs font-medium bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 rounded-full">
+                      <Badge variant="secondary" className="bg-muted text-muted-foreground border-0">
                         Ineligible
-                      </span>
+                      </Badge>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {displayedPlayers.length === 0 && (
-        <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
+        <div className="text-center py-8 text-muted-foreground">
           No players match the current filters.
         </div>
       )}

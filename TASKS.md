@@ -1116,7 +1116,50 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓
+### TASK-501e: Restyle My Team Page
+**Status:** COMPLETED
+**Completed:** January 2026
+**Depends On:** TASK-501d
+
+**Objective:** Apply Forest theme and shadcn/ui components to My Team page, using new layout shell.
+
+#### Requirements
+- Use shadcn/ui Card component for main content container
+- Use shadcn/ui Table component for roster table
+- Use shadcn/ui Badge component for player status (Eligible/Ineligible)
+- Use shadcn/ui Select for position filter dropdown
+- Use PageHeader component from layout
+- Remove old inline navigation (now handled by AppShell)
+- Remove inline "Back to Dashboard" and redundant nav buttons
+- Maintain all existing functionality (sorting, filtering, data display)
+- Apply Forest theme colors consistently
+
+#### Files Modified
+| File | Change |
+|------|--------|
+| `app/(dashboard)/my-team/page.tsx` | Restyled with shadcn/ui Card, Button; uses PageHeader; removed old inline nav |
+| `components/roster/roster-table.tsx` | Converted to shadcn/ui Table, Badge, Select; improved spacing and borders |
+
+#### Acceptance Criteria
+- [x] Page uses shadcn/ui Card for content container
+- [x] Roster table uses shadcn/ui Table component
+- [x] Status badges use shadcn/ui Badge component
+- [x] Position filter uses shadcn/ui Select component
+- [x] PageHeader component used for page title
+- [x] Old inline navigation removed (sidebar/bottom nav handles this)
+- [x] Sorting still works
+- [x] Filtering still works
+- [x] "Manage Keepers" button still navigates correctly
+- [x] Best Value badges still display
+- [x] Responsive on mobile
+- [x] No TypeScript errors
+- [x] Visual consistency with Forest theme
+
+**Completion Note:** My Team page restyled with shadcn/ui components. Roster table improved with better spacing, subtle borders, and cleaner badge styling.
+
+---
+
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓
 
 **Production Data Status (2026-01-21):**
 - All 2023, 2024, 2025 draft and FA data imported
