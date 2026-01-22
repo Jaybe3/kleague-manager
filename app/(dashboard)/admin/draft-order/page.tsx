@@ -2,6 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { PageHeader } from "@/components/layout";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 interface Team {
   id: string;
@@ -149,215 +159,214 @@ export default function AdminDraftOrderPage() {
     }
   }
 
-  function handleSeasonChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const year = parseInt(e.target.value, 10);
-    setSelectedYear(year);
-    setSuccess(null);
-  }
-
   if (loading && teams.length === 0) {
     return (
-      <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 p-4 md:p-8">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6">
+      <div className="space-y-6">
+        <PageHeader
+          title="Set Draft Order"
+          description="Loading..."
+        />
+        <Card>
+          <CardContent className="pt-6">
             <div className="animate-pulse">
-              <div className="h-8 bg-zinc-200 dark:bg-zinc-700 rounded w-1/3 mb-4"></div>
+              <div className="h-8 bg-muted rounded w-1/3 mb-4"></div>
               <div className="space-y-3">
                 {[...Array(10)].map((_, i) => (
-                  <div key={i} className="h-12 bg-zinc-200 dark:bg-zinc-700 rounded"></div>
+                  <div key={i} className="h-12 bg-muted rounded"></div>
                 ))}
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 p-4 md:p-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-4 md:p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                Set Draft Order
-              </h1>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Commissioner: Set the draft pick order for each season
-              </p>
-            </div>
-            <button
-              onClick={() => router.push("/admin/import")}
-              className="px-4 py-2 text-sm bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-md transition-colors"
-            >
-              Back to Admin
-            </button>
-          </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Set Draft Order"
+        description="Set the draft pick order for each season"
+      />
+
+      {/* Error */}
+      {error && (
+        <div className="bg-error/10 border border-error/20 rounded-md p-4">
+          <p className="text-error">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="mt-2 text-sm text-error/80 underline hover:text-error"
+          >
+            Dismiss
+          </button>
         </div>
+      )}
 
-        {/* Error */}
-        {error && (
-          <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-md p-4">
-            <p className="text-red-700 dark:text-red-400">{error}</p>
-            <button
-              onClick={() => setError(null)}
-              className="mt-2 text-sm text-red-600 dark:text-red-400 underline"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
+      {/* Success */}
+      {success && (
+        <div className="bg-success/10 border border-success/20 rounded-md p-4">
+          <p className="text-success">{success}</p>
+        </div>
+      )}
 
-        {/* Success */}
-        {success && (
-          <div className="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-800 rounded-md p-4">
-            <p className="text-green-700 dark:text-green-400">{success}</p>
-          </div>
-        )}
-
-        {/* Season Selector */}
-        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-4">
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+      {/* Season Selector */}
+      <Card>
+        <CardContent className="pt-6">
+          <label className="block text-sm font-medium text-foreground mb-2">
             Season Year
           </label>
-          <select
-            value={selectedYear ?? ""}
-            onChange={handleSeasonChange}
+          <Select
+            value={selectedYear?.toString() ?? ""}
+            onValueChange={(value) => {
+              setSelectedYear(parseInt(value, 10));
+              setSuccess(null);
+            }}
             disabled={loading}
-            className="w-full md:w-48 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
           >
-            {availableSeasons.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </div>
+            <SelectTrigger className="w-full md:w-48">
+              <SelectValue placeholder="Select season" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableSeasons.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
-        {/* Draft Order Table */}
-        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md overflow-hidden">
+      {/* Draft Order Table */}
+      <Card>
+        <CardContent className="pt-6">
           {teams.length === 0 ? (
-            <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
+            <div className="p-8 text-center text-muted-foreground">
               <p>No teams found for {selectedYear} season.</p>
               <p className="text-sm mt-2">Select a different season or import draft data first.</p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead className="bg-zinc-50 dark:bg-zinc-900">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-300 w-16">
-                    Pick
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                    Team Name
-                  </th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-zinc-700 dark:text-zinc-300 w-24">
-                    Move
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
-                {teams.map((team, index) => (
-                  <tr
-                    key={team.id}
-                    className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
-                  >
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 font-semibold text-sm">
-                        {team.draftPosition}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                        {team.teamName}
-                      </span>
-                      <span className="ml-2 text-xs text-zinc-500 dark:text-zinc-400">
-                        (Slot {team.slotId})
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-center gap-1">
-                        <button
-                          onClick={() => moveTeam(index, "up")}
-                          disabled={index === 0 || saving}
-                          className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                          title="Move up"
-                        >
-                          <svg
-                            className="w-4 h-4 text-zinc-600 dark:text-zinc-300"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 15l7-7 7 7"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => moveTeam(index, "down")}
-                          disabled={index === teams.length - 1 || saving}
-                          className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                          title="Move down"
-                        >
-                          <svg
-                            className="w-4 h-4 text-zinc-600 dark:text-zinc-300"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
+            <div className="overflow-hidden rounded-md border border-border">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground w-16">
+                      Pick
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
+                      Team Name
+                    </th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-foreground w-24">
+                      Move
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {teams.map((team, index) => (
+                    <tr
+                      key={team.id}
+                      className="hover:bg-muted/30"
+                    >
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                          {team.draftPosition}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-foreground">
+                          {team.teamName}
+                        </span>
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          (Slot {team.slotId})
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => moveTeam(index, "up")}
+                            disabled={index === 0 || saving}
+                            className="h-8 w-8"
+                            title="Move up"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 15l7-7 7 7"
+                              />
+                            </svg>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => moveTeam(index, "down")}
+                            disabled={index === teams.length - 1 || saving}
+                            className="h-8 w-8"
+                            title="Move down"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Save Button */}
-        {teams.length > 0 && (
-          <div className="flex justify-end gap-3">
-            {hasChanges && (
-              <button
-                onClick={() => fetchDraftOrder(selectedYear ?? undefined)}
-                disabled={saving}
-                className="px-4 py-2 text-sm bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-md transition-colors disabled:opacity-50"
-              >
-                Reset
-              </button>
-            )}
-            <button
-              onClick={saveDraftOrder}
-              disabled={!hasChanges || saving}
-              className="px-6 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      {/* Save Button */}
+      {teams.length > 0 && (
+        <div className="flex justify-end gap-3">
+          {hasChanges && (
+            <Button
+              variant="secondary"
+              onClick={() => fetchDraftOrder(selectedYear ?? undefined)}
+              disabled={saving}
             >
-              {saving ? "Saving..." : "Save Draft Order"}
-            </button>
-          </div>
-        )}
+              Reset
+            </Button>
+          )}
+          <Button
+            onClick={saveDraftOrder}
+            disabled={!hasChanges || saving}
+          >
+            {saving ? "Saving..." : "Save Draft Order"}
+          </Button>
+        </div>
+      )}
 
-        {/* Info Note */}
-        <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-md p-4">
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            <span className="font-medium">Note:</span> Draft order determines the column order
+      {/* Info Note */}
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Note:</span> Draft order determines the column order
             on the Draft Board. Pick 1 picks first each round.
           </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

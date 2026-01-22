@@ -8,8 +8,12 @@ import {
   Star,
   LayoutGrid,
   BookOpen,
-  Settings,
   Trophy,
+  Database,
+  ListOrdered,
+  Shield,
+  Scale,
+  Calendar,
 } from "lucide-react";
 
 const navItems = [
@@ -20,7 +24,11 @@ const navItems = [
 ];
 
 const adminItems = [
-  { label: "Admin", path: "/admin/import", icon: Settings },
+  { label: "Data Import", path: "/admin/import", icon: Database },
+  { label: "Draft Order", path: "/admin/draft-order", icon: ListOrdered },
+  { label: "Keeper Overrides", path: "/admin/keeper-overrides", icon: Shield },
+  { label: "Rules", path: "/admin/rules", icon: Scale },
+  { label: "Seasons", path: "/admin/seasons", icon: Calendar },
 ];
 
 export function Sidebar() {

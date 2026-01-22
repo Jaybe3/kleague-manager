@@ -1330,7 +1330,60 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓, TASK-501h ✓, TASK-501i ✓
+### TASK-501j: Restyle Admin Draft Order Page + Fix Admin Navigation
+**Status:** COMPLETED
+**Completed:** January 2026
+**Depends On:** TASK-501i
+
+**Objective:** Fix admin navigation in sidebar and apply Forest theme to Admin Draft Order page.
+
+#### Requirements
+
+**Part A: Fix Admin Navigation**
+- Update components/layout/sidebar.tsx
+- Under COMMISSIONER section, add links to ALL admin pages:
+  - Data Import → /admin/import
+  - Draft Order → /admin/draft-order
+  - Keeper Overrides → /admin/keeper-overrides
+  - Rules Management → /admin/rules
+  - Seasons → /admin/seasons
+- Keep links always visible (not collapsed)
+- Active page highlights with emerald accent like other nav items
+- Commissioner-only visibility preserved
+
+**Part B: Restyle Draft Order Page**
+- Use PageHeader component from layout
+- Use shadcn/ui Card for content sections
+- Use shadcn/ui Select for season dropdown
+- Use shadcn/ui Button for actions (save, reset, move up/down)
+- Remove old inline navigation (handled by AppShell)
+- Maintain all existing functionality
+- Apply Forest theme colors consistently
+- Success/error messages use Forest semantic colors
+
+#### Files Modified
+| File | Change |
+|------|--------|
+| `components/layout/sidebar.tsx` | Added 5 admin page links with icons (Database, ListOrdered, Shield, Scale, Calendar) |
+| `app/(dashboard)/admin/draft-order/page.tsx` | Restyled with shadcn/ui Card, Select, Button; Forest semantic colors |
+
+#### Acceptance Criteria
+- [x] Sidebar shows all 5 admin links under Commissioner section
+- [x] Admin links only visible to commissioners
+- [x] Active admin page highlights correctly
+- [x] Page uses PageHeader component
+- [x] Season selector uses shadcn/ui Select
+- [x] Buttons use shadcn/ui Button
+- [x] Setting draft order still works
+- [x] Success/error states use Forest semantic colors
+- [x] Responsive on mobile
+- [x] No TypeScript errors
+
+**Completion Note:** Completed January 2026. Admin navigation expanded to 5 links. Draft Order page restyled with shadcn/ui components. During testing, discovered BUG-002: cannot set draft order for 2026 because teams don't exist until draft data imported.
+
+---
+
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓, TASK-501h ✓, TASK-501i ✓, TASK-501j ✓
 
 **Production Data Status (2026-01-21):**
 - All 2023, 2024, 2025 draft and FA data imported
@@ -1460,3 +1513,36 @@ Current trade entry form has UX issues:
 - Discovered during TASK-501i testing
 - Deprioritized - current import from CBS handles most trade data
 - Manual entry is edge case for commissioner corrections
+
+---
+
+### BUG-002: Cannot Set Draft Order or Keepers for Future Season
+**Priority:** High
+**Status:** BACKLOG
+**Type:** Bug
+
+**Problem:**
+Draft order page and keeper selection only work for seasons that have teams. But teams are only created when draft data is imported. This creates a chicken-and-egg problem - can't prepare for a draft that hasn't happened yet.
+
+**Expected Workflow:**
+1. Commissioner creates 2026 season (done - exists with isActive=true)
+2. Commissioner sets 2026 draft order BEFORE draft
+3. Managers select 2026 keepers BEFORE draft
+4. Draft happens with keepers locked at their rounds
+5. Draft data imported afterward
+
+**Current Broken State:**
+- 2026 season exists but has no teams
+- Draft order dropdown doesn't show 2026
+- Keeper selection can't work without teams
+- Blocked until draft data imported (which happens AFTER draft)
+
+**Proposed Solution:**
+- Create teams for a season when the season is created (or via separate "Initialize Season" action)
+- Copy team slots/names from previous season as starting point
+- Allow draft order and keeper selection before draft data exists
+
+**Notes:**
+- Discovered during TASK-501j
+- Blocks 2026 draft preparation
+- Should be addressed before next draft season
