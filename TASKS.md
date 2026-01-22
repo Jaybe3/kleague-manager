@@ -1159,7 +1159,40 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓
+### TASK-501f: Restyle Rules Page
+**Status:** COMPLETED
+**Completed:** January 2026
+**Depends On:** TASK-501e
+
+**Objective:** Apply Forest theme and shadcn/ui components to Rules page.
+
+#### Requirements
+- Use PageHeader component from layout
+- Use shadcn/ui Card for rule groupings (by effective season)
+- Remove any old inline navigation (handled by AppShell)
+- Apply Forest theme colors consistently
+- Clean typography hierarchy for rule names and descriptions
+- Maintain grouping by effective season (2023 founding rules, 2025 new rules)
+
+#### Files Modified
+| File | Change |
+|------|--------|
+| `app/(dashboard)/rules/page.tsx` | Restyled with shadcn/ui Card, Badge; uses PageHeader; removed old nav and code labels |
+
+#### Acceptance Criteria
+- [x] Page uses PageHeader component
+- [x] Rules grouped by season using shadcn Card components
+- [x] Old inline navigation removed
+- [x] Clean typography (rule name bold, description muted)
+- [x] Responsive on mobile
+- [x] No TypeScript errors
+- [x] Visual consistency with Forest theme
+
+**Completion Note:** Rules page restyled with shadcn/ui Card and Badge. Code labels removed, cleaner typography.
+
+---
+
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓
 
 **Production Data Status (2026-01-21):**
 - All 2023, 2024, 2025 draft and FA data imported
