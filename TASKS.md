@@ -1287,7 +1287,50 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 
 ---
 
-**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓, TASK-501h ✓
+### TASK-501i: Restyle Admin Import Page
+**Status:** COMPLETED
+**Completed:** January 2026
+**Depends On:** TASK-501h
+
+**Objective:** Apply Forest theme and shadcn/ui components to Admin Import page.
+
+#### Requirements
+- Use PageHeader component from layout
+- Use shadcn/ui Card for content sections
+- Use shadcn/ui Tabs for Import/Trade toggle (instead of custom tabs)
+- Use shadcn/ui Select for dropdowns (import type, season, teams)
+- Use shadcn/ui Input for text inputs
+- Use shadcn/ui Button for actions
+- Use shadcn/ui Textarea for paste area
+- Remove old inline navigation (handled by AppShell)
+- Maintain all existing functionality (import draft/FA, enter trade)
+- Apply Forest theme colors consistently
+- Success/error messages use Forest semantic colors
+
+#### Files Modified
+| File | Change |
+|------|--------|
+| `app/(dashboard)/admin/import/page.tsx` | Restyled with shadcn/ui Tabs, Card, Select, Input, Button, Textarea |
+| `components/ui/tabs.tsx` | Installed shadcn/ui Tabs component |
+| `components/ui/textarea.tsx` | Installed shadcn/ui Textarea component |
+
+#### Acceptance Criteria
+- [x] Page uses PageHeader component
+- [x] Tabs use shadcn/ui Tabs component
+- [x] All dropdowns use shadcn/ui Select
+- [x] All inputs use shadcn/ui Input
+- [x] Buttons use shadcn/ui Button
+- [x] Import functionality still works
+- [x] Trade entry functionality still works
+- [x] Success/error states use Forest semantic colors
+- [x] Responsive on mobile
+- [x] No TypeScript errors
+
+**Completion Note:** Completed January 2026. Admin Import page restyled with shadcn/ui Tabs, Select, Input, Textarea, Button. Forest semantic colors for success/warning/error states.
+
+---
+
+**Current Status:** TASK-000 ✓, TASK-001 ✓, TASK-002 ✓, TASK-100 ✓, TASK-101 ✓, TASK-102 ✓, TASK-103 ✓, TASK-103-FINAL ✓, TASK-104 ✓, TASK-105 ✓, TASK-201 ✓, TASK-203 ✓, TASK-300 ✓, TASK-301 ✓, TASK-302 ✓, TASK-303 ✓, TASK-400 ✓, TASK-501d ✓, TASK-501e ✓, TASK-501f ✓, TASK-501g ✓, TASK-501h ✓, TASK-501i ✓
 
 **Production Data Status (2026-01-21):**
 - All 2023, 2024, 2025 draft and FA data imported
@@ -1364,3 +1407,56 @@ Removed from scope per product owner decision. The `audit_logs` table exists in 
 **Notes:**
 - Discovered during TASK-501h (Draft Board restyle)
 - Not blocking - cosmetic/historical completeness issue
+
+---
+
+### BUG-001: Keeper Selection Round Conflict Not Showing Error
+**Priority:** Medium
+**Status:** BACKLOG
+**Type:** Bug
+
+**Problem:**
+On Keepers page, when selecting a player for a round that's already taken by another keeper, the selection silently fails. Player doesn't appear in Selected Keepers section and no error message is shown.
+
+**Steps to Reproduce:**
+1. Go to /my-team/keepers
+2. Select a player at Round 25 (e.g., Jaylon Carlies)
+3. Try to select another player at Round 25 (e.g., Sam LaPorta)
+4. Sam LaPorta does not appear in Selected Keepers, no error shown
+
+**Expected Behavior:**
+Either:
+- Show error message explaining round conflict, OR
+- Show conflict alert prompting user to bump one of the players
+
+**Actual Behavior:**
+Selection silently fails, no feedback to user.
+
+**Notes:**
+- Discovered during TASK-501g testing
+- May be related to existing ConflictAlert component not triggering
+- Check /api/my-team/keepers POST handler for validation logic
+
+---
+
+### TASK-601: Redesign Trade Entry Feature
+**Priority:** Low
+**Status:** BACKLOG
+**Type:** Enhancement
+
+**Problem:**
+Current trade entry form has UX issues:
+- Manual player name typing is error-prone and can corrupt data
+- Only handles single player trades, not multi-player trades
+- No player search/autocomplete from existing roster
+
+**Proposed Solution:**
+- Add player search/autocomplete from source team's roster
+- Support multi-player trades (Player A + Player B for Player C)
+- Validate players exist before submission
+- Show trade preview before confirming
+
+**Notes:**
+- Discovered during TASK-501i testing
+- Deprioritized - current import from CBS handles most trade data
+- Manual entry is edge case for commissioner corrections

@@ -1,11 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { PageHeader } from "@/components/layout";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type ImportType = "draft" | "fa";
 type InputMode = "text" | "file";
-type Tab = "import" | "trade";
 
 interface ImportResult {
   success: boolean;
@@ -37,53 +48,29 @@ interface Season {
 }
 
 export default function AdminImportPage() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>("import");
-
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-              Admin: Data Management
-            </h1>
-            <button
-              onClick={() => router.push("/my-team")}
-              className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-            >
-              Back to Dashboard
-            </button>
-          </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Data Management"
+        description="Import draft data, FA signings, and enter trades"
+      />
 
-          {/* Tab Navigation */}
-          <div className="flex border-b border-zinc-200 dark:border-zinc-700 mb-6">
-            <button
-              onClick={() => setActiveTab("import")}
-              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                activeTab === "import"
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-              }`}
-            >
-              Import Data
-            </button>
-            <button
-              onClick={() => setActiveTab("trade")}
-              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                activeTab === "trade"
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-              }`}
-            >
-              Enter Trade
-            </button>
-          </div>
-
-          {activeTab === "import" && <ImportSection />}
-          {activeTab === "trade" && <TradeSection />}
-        </div>
-      </div>
+      <Card>
+        <CardContent className="pt-6">
+          <Tabs defaultValue="import">
+            <TabsList className="mb-6">
+              <TabsTrigger value="import">Import Data</TabsTrigger>
+              <TabsTrigger value="trade">Enter Trade</TabsTrigger>
+            </TabsList>
+            <TabsContent value="import">
+              <ImportSection />
+            </TabsContent>
+            <TabsContent value="trade">
+              <TradeSection />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -186,12 +173,13 @@ function ImportSection() {
   }
 
   return (
-    <div>
-      <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
-        <h3 className="font-medium text-blue-800 dark:text-blue-300 mb-2">
+    <div className="space-y-6">
+      {/* Instructions */}
+      <div className="p-4 bg-primary/10 border border-primary/20 rounded-md">
+        <h3 className="font-medium text-primary mb-2">
           Import Instructions
         </h3>
-        <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
+        <ul className="text-sm text-primary/80 space-y-1">
           <li>1. <strong>Draft Picks:</strong> Import first to create season, teams, and players</li>
           <li>2. <strong>FA Signings:</strong> Import after draft data (requires teams to exist)</li>
           <li>3. Copy data from CBS and paste below, or upload an Excel file</li>
@@ -200,86 +188,82 @@ function ImportSection() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Import Type */}
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
             Import Type
           </label>
-          <select
-            value={importType}
-            onChange={(e) => setImportType(e.target.value as ImportType)}
-            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
-          >
-            <option value="draft">Draft Picks</option>
-            <option value="fa">Free Agent Signings</option>
-          </select>
+          <Select value={importType} onValueChange={(v) => setImportType(v as ImportType)}>
+            <SelectTrigger className="w-full bg-background border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft Picks</SelectItem>
+              <SelectItem value="fa">Free Agent Signings</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Season Year */}
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
             Season Year
           </label>
           {seasonsLoading ? (
-            <div className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-zinc-100 dark:bg-zinc-700 text-zinc-500">
+            <div className="w-full px-3 py-2 border border-border rounded-md bg-muted text-muted-foreground">
               Loading seasons...
             </div>
           ) : seasons.length === 0 ? (
-            <div className="w-full px-3 py-2 border border-red-300 dark:border-red-600 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
+            <div className="w-full px-3 py-2 border border-error/30 rounded-md bg-error/10 text-error">
               No seasons found. Please create a season first.
             </div>
           ) : (
-            <select
-              value={seasonYear}
-              onChange={(e) => setSeasonYear(e.target.value)}
-              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
-            >
-              {seasons.map((season) => (
-                <option key={season.year} value={season.year}>
-                  {season.year} ({season.totalRounds} rounds){season.isActive ? " - Active" : ""}
-                </option>
-              ))}
-            </select>
+            <Select value={seasonYear} onValueChange={setSeasonYear}>
+              <SelectTrigger className="w-full bg-background border-border">
+                <SelectValue placeholder="Select season" />
+              </SelectTrigger>
+              <SelectContent>
+                {seasons.map((season) => (
+                  <SelectItem key={season.year} value={String(season.year)}>
+                    {season.year} ({season.totalRounds} rounds){season.isActive ? " - Active" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
 
         {/* Input Mode Toggle */}
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
             Input Method
           </label>
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
+              variant={inputMode === "text" ? "default" : "outline"}
               onClick={() => setInputMode("text")}
-              className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                inputMode === "text"
-                  ? "bg-blue-600 text-white"
-                  : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600"
-              }`}
+              className="flex-1"
             >
               Paste Text (Recommended)
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant={inputMode === "file" ? "default" : "outline"}
               onClick={() => setInputMode("file")}
-              className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                inputMode === "file"
-                  ? "bg-blue-600 text-white"
-                  : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600"
-              }`}
+              className="flex-1"
             >
               Upload Excel
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Text Input */}
         {inputMode === "text" && (
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">
               Paste CBS Data
             </label>
-            <textarea
+            <Textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder={
@@ -288,9 +272,9 @@ function ImportSection() {
                   : "Date\tTeam\tPlayers\tEffective\n12/30/23 1:42 AM ET\tSweet Chin Music\tJonathan Owens DB • CHI - Signed for $0\t17"
               }
               rows={10}
-              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 font-mono text-sm"
+              className="font-mono text-sm bg-background border-border"
             />
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs text-muted-foreground">
               Copy directly from CBS and paste here. Tab-separated values are expected.
             </p>
           </div>
@@ -298,33 +282,33 @@ function ImportSection() {
 
         {/* File Input */}
         {inputMode === "file" && (
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">
               Excel File (.xlsx)
             </label>
-            <input
+            <Input
               type="file"
               accept=".xlsx,.xls"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
+              className="bg-background border-border"
             />
           </div>
         )}
 
         {/* Submit Button */}
-        <button
+        <Button
           type="submit"
           disabled={loading || !seasonYear || (inputMode === "text" ? !text.trim() : !file)}
-          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-md transition-colors"
+          className="w-full"
         >
           {loading ? "Importing..." : `Import ${importType === "draft" ? "Draft Picks" : "FA Signings"}`}
-        </button>
+        </Button>
       </form>
 
       {/* Error Display */}
       {error && (
-        <div className="mt-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-md">
-          <p className="text-red-700 dark:text-red-400 font-medium">
+        <div className="p-4 bg-error/10 border border-error/20 rounded-md">
+          <p className="text-error font-medium">
             Error: {error}
           </p>
         </div>
@@ -338,19 +322,18 @@ function ImportSection() {
 
 function ImportResultDisplay({ result }: { result: ImportResult }) {
   return (
-    <div className="mt-6 space-y-4">
+    <div className="space-y-4">
+      {/* Status Banner */}
       <div
         className={`p-4 rounded-md ${
           result.success
-            ? "bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-800"
-            : "bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-800"
+            ? "bg-success/10 border border-success/20"
+            : "bg-warning/10 border border-warning/20"
         }`}
       >
         <p
           className={`font-medium ${
-            result.success
-              ? "text-green-700 dark:text-green-400"
-              : "text-yellow-700 dark:text-yellow-400"
+            result.success ? "text-success" : "text-warning"
           }`}
         >
           {result.success
@@ -360,31 +343,31 @@ function ImportResultDisplay({ result }: { result: ImportResult }) {
       </div>
 
       {/* Import Summary */}
-      <div className="bg-zinc-50 dark:bg-zinc-900 rounded-md p-4">
-        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
+      <div className="bg-muted/50 border border-border rounded-md p-4">
+        <h3 className="font-semibold text-foreground mb-3">
           Import Summary ({result.seasonYear})
         </h3>
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="text-zinc-600 dark:text-zinc-400">Type:</div>
-          <div className="text-zinc-900 dark:text-zinc-100">
+          <div className="text-muted-foreground">Type:</div>
+          <div className="text-foreground">
             {result.importType === "draft" ? "Draft Picks" : "FA Signings"}
           </div>
-          <div className="text-zinc-600 dark:text-zinc-400">Teams:</div>
-          <div className="text-zinc-900 dark:text-zinc-100">{result.imported.teams}</div>
-          <div className="text-zinc-600 dark:text-zinc-400">Players:</div>
-          <div className="text-zinc-900 dark:text-zinc-100">{result.imported.players}</div>
-          <div className="text-zinc-600 dark:text-zinc-400">Acquisitions:</div>
-          <div className="text-zinc-900 dark:text-zinc-100">{result.imported.acquisitions}</div>
+          <div className="text-muted-foreground">Teams:</div>
+          <div className="text-foreground">{result.imported.teams}</div>
+          <div className="text-muted-foreground">Players:</div>
+          <div className="text-foreground">{result.imported.players}</div>
+          <div className="text-muted-foreground">Acquisitions:</div>
+          <div className="text-foreground">{result.imported.acquisitions}</div>
         </div>
       </div>
 
       {/* Warnings */}
       {result.warnings.length > 0 && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-md p-4">
-          <h3 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-2">
+        <div className="bg-warning/10 border border-warning/20 rounded-md p-4">
+          <h3 className="font-semibold text-warning mb-2">
             Warnings ({result.warnings.length})
           </h3>
-          <ul className="text-sm text-yellow-700 dark:text-yellow-400 space-y-1 max-h-40 overflow-y-auto">
+          <ul className="text-sm text-warning/80 space-y-1 max-h-40 overflow-y-auto">
             {result.warnings.slice(0, 20).map((w, i) => (
               <li key={i}>{w}</li>
             ))}
@@ -397,11 +380,11 @@ function ImportResultDisplay({ result }: { result: ImportResult }) {
 
       {/* Errors */}
       {result.errors.length > 0 && (
-        <div className="bg-red-50 dark:bg-red-900/20 rounded-md p-4">
-          <h3 className="font-semibold text-red-800 dark:text-red-300 mb-2">
+        <div className="bg-error/10 border border-error/20 rounded-md p-4">
+          <h3 className="font-semibold text-error mb-2">
             Errors ({result.errors.length})
           </h3>
-          <ul className="text-sm text-red-700 dark:text-red-400 space-y-1 max-h-40 overflow-y-auto">
+          <ul className="text-sm text-error/80 space-y-1 max-h-40 overflow-y-auto">
             {result.errors.slice(0, 20).map((e, i) => (
               <li key={i}>{e}</li>
             ))}
@@ -502,22 +485,22 @@ function TradeSection() {
 
   return (
     <div>
-      <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
-        <h3 className="font-medium text-blue-800 dark:text-blue-300 mb-2">
+      <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-md">
+        <h3 className="font-medium text-primary mb-2">
           Manual Trade Entry
         </h3>
-        <p className="text-sm text-blue-700 dark:text-blue-400">
+        <p className="text-sm text-primary/80">
           Enter trade details manually. The player will retain their original draft round/pick.
         </p>
       </div>
 
       {/* Season Year Selection */}
       <div className="mb-4">
-        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+        <label className="block text-sm font-medium text-foreground mb-2">
           Season Year
         </label>
         <div className="flex gap-2">
-          <input
+          <Input
             type="number"
             value={seasonYear}
             onChange={(e) => {
@@ -525,158 +508,152 @@ function TradeSection() {
               setTeamsLoaded(false);
               setTeams([]);
             }}
-            min="2000"
-            max="2100"
-            className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
+            min={2000}
+            max={2100}
+            className="flex-1"
           />
-          <button
+          <Button
             type="button"
+            variant="secondary"
             onClick={loadTeams}
-            className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-md transition-colors"
           >
             Load Teams
-          </button>
+          </Button>
         </div>
       </div>
 
       {!teamsLoaded ? (
-        <div className="text-center py-8 text-zinc-600 dark:text-zinc-400">
+        <div className="text-center py-8 text-muted-foreground">
           <p>Select a season year and click "Load Teams" to enter a trade.</p>
           <p className="text-sm mt-2">Teams must exist (import draft data first).</p>
         </div>
       ) : teams.length === 0 ? (
-        <div className="text-center py-8 text-yellow-600 dark:text-yellow-400">
+        <div className="text-center py-8 text-warning">
           <p>No teams found for season {seasonYear}.</p>
-          <p className="text-sm mt-2">Import draft data first to create teams.</p>
+          <p className="text-sm mt-2 text-warning/80">Import draft data first to create teams.</p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Player Info */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 First Name
               </label>
-              <input
+              <Input
                 type="text"
                 value={playerFirstName}
                 onChange={(e) => setPlayerFirstName(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 Last Name
               </label>
-              <input
+              <Input
                 type="text"
                 value={playerLastName}
                 onChange={(e) => setPlayerLastName(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 Position
               </label>
-              <select
-                value={playerPosition}
-                onChange={(e) => setPlayerPosition(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
-              >
-                <option value="">Select...</option>
-                <option value="QB">QB</option>
-                <option value="RB">RB</option>
-                <option value="WR">WR</option>
-                <option value="TE">TE</option>
-                <option value="K">K</option>
-                <option value="DEF">DEF</option>
-                <option value="LB">LB</option>
-                <option value="DB">DB</option>
-                <option value="DL">DL</option>
-              </select>
+              <Select value={playerPosition} onValueChange={setPlayerPosition} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="QB">QB</SelectItem>
+                  <SelectItem value="RB">RB</SelectItem>
+                  <SelectItem value="WR">WR</SelectItem>
+                  <SelectItem value="TE">TE</SelectItem>
+                  <SelectItem value="K">K</SelectItem>
+                  <SelectItem value="DEF">DEF</SelectItem>
+                  <SelectItem value="LB">LB</SelectItem>
+                  <SelectItem value="DB">DB</SelectItem>
+                  <SelectItem value="DL">DL</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {/* Teams */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 From Team
               </label>
-              <select
-                value={fromTeam}
-                onChange={(e) => setFromTeam(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
-              >
-                <option value="">Select team...</option>
-                {teams.map((team) => (
-                  <option key={team.id} value={team.teamName}>
-                    {team.teamName}
-                  </option>
-                ))}
-              </select>
+              <Select value={fromTeam} onValueChange={setFromTeam} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select team..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.teamName}>
+                      {team.teamName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 To Team
               </label>
-              <select
-                value={toTeam}
-                onChange={(e) => setToTeam(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
-              >
-                <option value="">Select team...</option>
-                {teams.map((team) => (
-                  <option key={team.id} value={team.teamName}>
-                    {team.teamName}
-                  </option>
-                ))}
-              </select>
+              <Select value={toTeam} onValueChange={setToTeam} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select team..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.teamName}>
+                      {team.teamName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {/* Trade Date */}
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Trade Date
             </label>
-            <input
+            <Input
               type="date"
               value={tradeDate}
               onChange={(e) => setTradeDate(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
             />
           </div>
 
           {/* Submit Button */}
-          <button
+          <Button
             type="submit"
             disabled={loading}
-            className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-md transition-colors"
+            className="w-full"
           >
             {loading ? "Recording Trade..." : "Record Trade"}
-          </button>
+          </Button>
         </form>
       )}
 
       {/* Error Display */}
       {error && (
-        <div className="mt-4 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-md">
-          <p className="text-red-700 dark:text-red-400">{error}</p>
+        <div className="mt-4 p-4 bg-error/10 border border-error/20 rounded-md">
+          <p className="text-error">{error}</p>
         </div>
       )}
 
       {/* Success Display */}
       {success && (
-        <div className="mt-4 p-4 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-800 rounded-md">
-          <p className="text-green-700 dark:text-green-400">{success}</p>
+        <div className="mt-4 p-4 bg-success/10 border border-success/20 rounded-md">
+          <p className="text-success">{success}</p>
         </div>
       )}
     </div>
