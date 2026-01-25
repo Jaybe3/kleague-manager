@@ -392,8 +392,12 @@ HAVING COUNT(*) > 1
 
 **Remaining:** Final user testing to confirm all flows work end-to-end (select, bump, remove, finalize).
 
-### 4. Trade Entry Missing from CBS Data
-CBS transaction files don't include trades. Trades must be entered manually via Admin > Trade Entry. Historical trades from 2023/2024 may be missing.
+### 4. Trade Import and Entry
+**Corrected (Jan 25, 2026):** CBS transaction data DOES include trades in the format "Traded from [Team Name]". The text parser (`lib/importers/text-parser.ts`) correctly parses these and creates TRADE acquisitions.
+
+**Manual Entry:** Admin > Data Import > "Enter Trade" tab exists for edge cases where trades need to be entered manually. However, manual entry is error-prone (user must type player names exactly).
+
+**Data Cleanup (Jan 25, 2026):** Fixed 2 corrupted player records ("Chin Music Troy Franklin", "Chin Music Quinshon Judkins") caused by manual entry error where team name fragments were accidentally included in player names. Correct TRADE acquisitions created for real players.
 
 ### RESOLVED: BUG-002 - Cannot Set Draft Order or Keepers for Future Season
 **Fixed:** January 25, 2026 (TASK-700)

@@ -1753,6 +1753,12 @@ Current trade entry form has UX issues:
 - Deprioritized - current import from CBS handles most trade data
 - Manual entry is edge case for commissioner corrections
 
+**Data Corruption Incident (Jan 25, 2026):**
+Manual trade entry caused 2 corrupted player records where team name "Chin Music" was accidentally included in player first names:
+- "Chin Music Troy Franklin" and "Chin Music Quinshon Judkins" created as duplicate players
+- Corrupted records deleted, correct TRADE acquisitions created for real players
+- This validates the need for player autocomplete/validation in manual entry
+
 ---
 
 ### BUG-002: Cannot Set Draft Order or Keepers for Future Season
