@@ -158,7 +158,8 @@ model KeeperSelection {
   player              Player            @relation(fields: [playerId], references: [id])
   originalAcquisition PlayerAcquisition @relation(fields: [originalAcquisitionId], references: [id])
 
-  @@unique([teamId, seasonYear, keeperRound])
+  // Note: Removed @@unique([teamId, seasonYear, keeperRound]) to allow temporary conflicts
+  // Conflicts are detected by detectConflicts() and blocked at finalization
   @@unique([teamId, playerId, seasonYear])
   @@map("keeper_selections")
 }

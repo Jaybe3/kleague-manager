@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { getPlayerKeeperCost } from "./service";
+import { getPlayerKeeperCost, getPlayerKeeperCostsBatch } from "./service";
 
 // Re-export types for convenience
 export type {
@@ -141,7 +141,7 @@ export async function getTeamKeeperSelections(
     },
   });
 
-  // Get all players on roster (not dropped) with keeper costs
+  // Get all players on roster (not dropped)
   const rosterAcquisitions = await db.playerAcquisition.findMany({
     where: {
       teamId,
@@ -152,17 +152,28 @@ export async function getTeamKeeperSelections(
     },
   });
 
-  // Calculate keeper costs for each player (deduplicate by player ID)
-  const selectedPlayerIds = new Set(existingSelections.map(s => s.playerId));
+  // Collect ALL unique player IDs we need costs for
+  const rosterPlayerIds = rosterAcquisitions.map((a) => a.playerId);
+  const selectionPlayerIds = existingSelections.map((s) => s.playerId);
+  const allPlayerIds = [...new Set([...rosterPlayerIds, ...selectionPlayerIds])];
+
+  // BATCH: Get all keeper costs in ONE call (reduces ~168 queries to ~9-11)
+  const keeperCosts = await getPlayerKeeperCostsBatch(
+    allPlayerIds,
+    team.slotId,
+    targetYear
+  );
+
+  // Build eligible players (in-memory lookups, no DB calls)
+  const selectedPlayerIds = new Set(existingSelections.map((s) => s.playerId));
   const eligiblePlayersMap = new Map<string, EligiblePlayer>();
 
   for (const acq of rosterAcquisitions) {
-    // Skip if we've already processed this player
     if (eligiblePlayersMap.has(acq.playerId)) {
       continue;
     }
 
-    const keeperResult = await getPlayerKeeperCost(acq.playerId, teamId, targetYear);
+    const keeperResult = keeperCosts.get(acq.playerId);
 
     if (keeperResult && keeperResult.calculation.isEligible) {
       eligiblePlayersMap.set(acq.playerId, {
@@ -180,10 +191,10 @@ export async function getTeamKeeperSelections(
 
   const eligiblePlayers = Array.from(eligiblePlayersMap.values());
 
-  // Build selection info with calculated vs final round
+  // Build selection info with calculated vs final round (in-memory lookups)
   const selections: KeeperSelectionInfo[] = [];
   for (const sel of existingSelections) {
-    const keeperResult = await getPlayerKeeperCost(sel.playerId, teamId, targetYear);
+    const keeperResult = keeperCosts.get(sel.playerId);
     const calculatedRound = keeperResult?.calculation.keeperRound ?? sel.keeperRound;
 
     selections.push({
@@ -249,8 +260,18 @@ export async function selectPlayer(
     return { success: false, error: "Player already selected" };
   }
 
+  // Get team to find slotId
+  const team = await db.team.findUnique({
+    where: { id: teamId },
+    select: { slotId: true },
+  });
+
+  if (!team) {
+    return { success: false, error: "Team not found" };
+  }
+
   // Get player's keeper cost
-  const keeperResult = await getPlayerKeeperCost(playerId, teamId, targetYear);
+  const keeperResult = await getPlayerKeeperCost(playerId, team.slotId, targetYear);
 
   if (!keeperResult) {
     return { success: false, error: "Player not found on team" };
@@ -273,12 +294,6 @@ export async function selectPlayer(
   if (!acquisition) {
     return { success: false, error: "No valid acquisition found" };
   }
-
-  // Get team to find slotId
-  const team = await db.team.findUnique({
-    where: { id: teamId },
-    select: { slotId: true },
-  });
 
   // Create selection (include slotId for slot-centric queries)
   const selection = await db.keeperSelection.create({
@@ -368,8 +383,16 @@ export async function bumpPlayer(
     return { success: false, error: "Cannot modify finalized selection" };
   }
 
+  // Get team to find slotId
+  const team = await db.team.findUnique({
+    where: { id: teamId },
+    select: { slotId: true },
+  });
+
   // Get original keeper cost
-  const keeperResult = await getPlayerKeeperCost(playerId, teamId, targetYear);
+  const keeperResult = team
+    ? await getPlayerKeeperCost(playerId, team.slotId, targetYear)
+    : null;
   const originalCost = keeperResult?.calculation.keeperRound ?? selection.keeperRound;
 
   // Validate: newRound must be < original cost (earlier/better pick)
@@ -425,8 +448,16 @@ export async function getBumpOptions(
     return [];
   }
 
+  // Get team to find slotId
+  const team = await db.team.findUnique({
+    where: { id: teamId },
+    select: { slotId: true },
+  });
+
   // Get original keeper cost
-  const keeperResult = await getPlayerKeeperCost(playerId, teamId, targetYear);
+  const keeperResult = team
+    ? await getPlayerKeeperCost(playerId, team.slotId, targetYear)
+    : null;
   const originalCost = keeperResult?.calculation.keeperRound ?? selection.keeperRound;
 
   // Get all rounds currently used by this team

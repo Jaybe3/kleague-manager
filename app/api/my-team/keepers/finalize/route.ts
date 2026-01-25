@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { finalizeSelections, getDeadlineState } from "@/lib/keeper/selection-service";
+import { getSlotForManager } from "@/lib/slots";
 
 // POST - Finalize all keeper selections
 export async function POST() {
@@ -11,42 +12,38 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Find user's most recent team
-    const team = await db.team.findFirst({
-      where: {
-        managerId: session.user.id,
-      },
-      orderBy: { seasonYear: "desc" },
-    });
-
-    if (!team) {
-      return NextResponse.json(
-        { error: "No team found for this user" },
-        { status: 404 }
-      );
+    // Get user's slot
+    const slot = await getSlotForManager(session.user.id);
+    if (!slot) {
+      return NextResponse.json({ error: "No slot assigned to user" }, { status: 404 });
     }
 
-    // Finalize selections for next year
-    const targetYear = team.seasonYear + 1;
+    // Get active season to determine years (prevents cascade bug)
+    const activeSeason = await db.season.findFirst({ where: { isActive: true } });
+    if (!activeSeason) {
+      return NextResponse.json({ error: "No active season" }, { status: 404 });
+    }
 
-    // Get target season to check deadline
-    const targetSeason = await db.season.findUnique({
-      where: { year: targetYear },
+    const targetYear = activeSeason.year;  // Selecting keepers FOR this year
+    const rosterYear = targetYear - 1;      // Roster we're selecting FROM
+
+    // Get roster team
+    const rosterTeam = await db.team.findFirst({
+      where: { slotId: slot.id, seasonYear: rosterYear },
     });
-
-    if (!targetSeason) {
-      return NextResponse.json({ error: "Target season not found" }, { status: 404 });
+    if (!rosterTeam) {
+      return NextResponse.json({ error: "No team found" }, { status: 404 });
     }
 
     // Check deadline - cannot finalize after deadline passes
-    if (getDeadlineState(targetSeason.keeperDeadline) === 'passed') {
+    if (getDeadlineState(activeSeason.keeperDeadline) === 'passed') {
       return NextResponse.json(
         { error: "Cannot finalize - deadline has passed" },
         { status: 403 }
       );
     }
 
-    const result = await finalizeSelections(team.id, targetYear);
+    const result = await finalizeSelections(rosterTeam.id, targetYear);
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 });

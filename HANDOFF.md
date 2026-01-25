@@ -1,7 +1,7 @@
 # KLeague Manager - Project Handoff Document
 
-**Last Updated:** January 20, 2026
-**Session:** Import Bug Fixes and Data Cleanup
+**Last Updated:** January 25, 2026
+**Session:** TASK-600c, TASK-700, BUG-001, BUG-002, TASK-501b/c Performance Fix
 
 ---
 
@@ -157,8 +157,35 @@ model KeeperSelection {
   yearsKept             Int
   originalAcquisitionId String
   isFinalized           Boolean
+
+  // Note: @@unique([teamId, playerId, seasonYear]) - prevents duplicate player selection
+  // Removed: @@unique([teamId, seasonYear, keeperRound]) - allows temporary conflicts (BUG-001 fix)
 }
 ```
+
+#### DraftOrder (Phase 6 - Slot-Centric)
+```prisma
+model DraftOrder {
+  id         String   @id
+  slotId     Int      // Links directly to TeamSlot, NOT Team
+  seasonYear Int
+  position   Int      // 1-10 draft position
+
+  @@unique([slotId, seasonYear])
+  @@unique([seasonYear, position])
+}
+```
+**Key Architecture Change (Phase 6):** Draft order is now stored in a dedicated `DraftOrder` table that links directly to `TeamSlot`. This allows:
+- Setting draft order for future seasons BEFORE Team records exist
+- Draft order independent of Team table (single source of truth)
+- Pre-season planning without creating placeholder teams
+
+**Service:** `lib/slots/draft-order-service.ts` handles all draft order operations:
+- `getOrCreateDraftOrder(year)` - Auto-creates from previous season if needed
+- `getDraftOrderWithNames(year)` - Returns order with team names from TeamAlias
+- `updateDraftOrder(year, entries)` - Updates positions for a season
+
+**Status (Jan 25, 2026):** Phase 6 core migration complete (TASK-600c). Draft order, keeper selection, and draft board all work for future seasons. Technical debt cleanup deferred to TASK-600d.
 
 ### The Slot-Based Identity System
 
@@ -356,11 +383,63 @@ HAVING COUNT(*) > 1
 2. Change FA import to copy original draft round to FA acquisition
 3. Accept current behavior (simpler, but doesn't match PRD)
 
-### 3. Keeper Selection Not Yet Tested
-The KeeperSelection table exists but has 0 records. The keeper selection UI and finalization flow haven't been tested with real data.
+### 3. Keeper Selection Testing
+**Update (Jan 25):** Keeper selection is now functional:
+- BUG-002 fixed: Team records auto-created for future seasons
+- Cascade bug fixed: All routes use active season pattern
+- Performance fixed: Page loads quickly (95% query reduction)
+- Override lookup fixed: Uses roster team correctly
+
+**Remaining:** Final user testing to confirm all flows work end-to-end (select, bump, remove, finalize).
 
 ### 4. Trade Entry Missing from CBS Data
 CBS transaction files don't include trades. Trades must be entered manually via Admin > Trade Entry. Historical trades from 2023/2024 may be missing.
+
+### RESOLVED: BUG-002 - Cannot Set Draft Order or Keepers for Future Season
+**Fixed:** January 25, 2026 (TASK-700)
+
+**Problem:** Teams only existed after draft import, blocking pre-draft workflow.
+
+**Solution:** Created `lib/slots/team-initializer.ts` to auto-create Team records from slot data when needed. Keeper selection API now calls `ensureTeamForSlot()` before loading roster.
+
+**Cascade Bug Fix (also Jan 25):** Initial implementation had a bug where using "most recent team" logic with `ensureTeamForSlot()` caused runaway team creation (2027-2032+). Fixed by anchoring to active season instead of "most recent team" in both GET and POST handlers of `app/api/my-team/keepers/route.ts`.
+
+### RESOLVED: BUG-001 - Keeper Selection Round Conflict Not Showing Error
+**Fixed:** January 25, 2026
+
+**Problem:** Selecting two players at same round silently failed due to database unique constraint.
+
+**Solution:** Removed `@@unique([teamId, seasonYear, keeperRound])` from KeeperSelection schema. Now allows temporary conflicts during selection, detected by `detectConflicts()`, and blocked at finalization.
+
+### RESOLVED: TASK-501b/c - Keepers Page Performance
+**Fixed:** January 25, 2026
+
+**Problem:** Keepers page took too long to load (~168 database queries per page load due to N+1 query pattern in `getTeamKeeperSelections`).
+
+**Solution:** Added `getPlayerKeeperCostsBatch()` function to `lib/keeper/service.ts`:
+- Fetches rule flags ONCE
+- Batches acquisitions (this-slot and cross-slot for trades/FAs)
+- Batches overrides
+- Processes calculations in memory
+- Query count: 168 → 9-11 (95% reduction)
+
+**Additional bugs fixed during investigation:**
+1. **Override lookup bug:** Was using most recent team (2026) instead of roster team (2025) for override lookups
+2. **Cascade bug:** All keeper routes (`route.ts`, `bump/route.ts`, `[playerId]/route.ts`, `finalize/route.ts`) now use consistent pattern:
+   - `getSlotForManager()` for slot lookup
+   - `activeSeason.year` for target year
+   - `targetYear - 1` for roster year
+
+**Consistent Keeper Route Pattern:**
+```typescript
+const slot = await getSlotForManager(session.user.id);
+const activeSeason = await db.season.findFirst({ where: { isActive: true } });
+const targetYear = activeSeason.year;      // 2026 (selecting FOR)
+const rosterYear = targetYear - 1;          // 2025 (selecting FROM)
+const rosterTeam = await db.team.findFirst({
+  where: { slotId: slot.id, seasonYear: rosterYear },
+});
+```
 
 ---
 
@@ -386,9 +465,16 @@ CBS transaction files don't include trades. Trades must be entered manually via 
 ### Keeper Calculation
 | File | Purpose |
 |------|---------|
-| `lib/keepers/keeper-calculator.ts` | Calculate keeper costs |
-| `lib/keepers/roster-service.ts` | Fetch roster with keeper costs |
-| `lib/keepers/types.ts` | TypeScript types |
+| `lib/keeper/calculator.ts` | Calculate keeper costs |
+| `lib/keeper/service.ts` | Fetch roster with keeper costs |
+| `lib/keeper/types.ts` | TypeScript types |
+
+### Slot Services (Phase 6)
+| File | Purpose |
+|------|---------|
+| `lib/slots/index.ts` | Slot helpers, getTeamNameForSlot(), getSlotForManager() |
+| `lib/slots/draft-order-service.ts` | DraftOrder CRUD, auto-create from prior season |
+| `lib/slots/team-initializer.ts` | Create Team records from slot data (fixes BUG-002) |
 
 ### API Routes
 | File | Purpose |
@@ -456,4 +542,4 @@ A JSON backup was created before the FA wipe:
 ---
 
 **Document Author:** Claude (Anthropic)
-**Session Date:** January 20, 2026
+**Session Date:** January 25, 2026

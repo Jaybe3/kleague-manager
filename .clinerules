@@ -23,6 +23,15 @@ This project follows the Verified Development Framework. Every action must be tr
 - ALWAYS show database state via Prisma Studio or queries
 - DEFAULT to asking clarifying questions rather than assuming
 
+### DOCUMENTATION REQUIREMENTS (MANDATORY):
+After ANY task completion or significant code changes, update:
+1. HANDOFF.md - Current state, schema changes, architecture decisions
+2. TASKS.md - Task status, completion notes, new issues discovered
+3. .clinerules - If any rules, patterns, or critical learnings changed
+
+A task is NOT complete until documentation is updated.
+Never close a task without verifying these files reflect current reality.
+
 ---
 
 ## Team Identity System (CRITICAL - Added 2026-01-18)
@@ -39,6 +48,39 @@ This project follows the Verified Development Framework. Every action must be tr
 **Example:**
 - "Discount Belichick" (2023-2024) = Slot 5
 - "Seal Team Nix" (2025, CBS applied retroactively) = Slot 5
+
+---
+
+## Keeper Route Pattern (CRITICAL - Added 2026-01-25)
+
+**All keeper API routes MUST use this pattern to avoid cascade bugs:**
+
+```typescript
+// 1. Get user's slot (permanent league position)
+const slot = await getSlotForManager(session.user.id);
+
+// 2. Get active season (anchors to a fixed year)
+const activeSeason = await db.season.findFirst({ where: { isActive: true } });
+
+// 3. Derive years from active season (NOT from "most recent team")
+const targetYear = activeSeason.year;  // Selecting keepers FOR this year
+const rosterYear = targetYear - 1;      // Roster we're selecting FROM
+
+// 4. Get roster team for the roster year
+const rosterTeam = await db.team.findFirst({
+  where: { slotId: slot.id, seasonYear: rosterYear },
+});
+
+// 5. Use rosterTeam.id for all keeper operations
+```
+
+**Why:** Using "most recent team" + `ensureTeamForSlot()` caused cascade bug (created teams for 2027, 2028...).
+
+**Files using this pattern:**
+- `app/api/my-team/keepers/route.ts`
+- `app/api/my-team/keepers/bump/route.ts`
+- `app/api/my-team/keepers/[playerId]/route.ts`
+- `app/api/my-team/keepers/finalize/route.ts`
 
 ---
 
@@ -86,4 +128,4 @@ Algorithm:
 
 ---
 
-**Last Updated:** January 20, 2026
+**Last Updated:** January 25, 2026

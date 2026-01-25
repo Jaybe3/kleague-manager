@@ -6,6 +6,8 @@ import {
   selectPlayer,
   canModifySelections,
 } from "@/lib/keeper/selection-service";
+import { getSlotForManager } from "@/lib/slots";
+import { ensureTeamForSlot } from "@/lib/slots/team-initializer";
 
 // GET - Get current keeper selections and eligible players
 export async function GET() {
@@ -15,24 +17,43 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Find user's most recent team (the roster they're selecting keepers from)
-    const team = await db.team.findFirst({
-      where: {
-        managerId: session.user.id,
-      },
-      orderBy: { seasonYear: "desc" },
-    });
-
-    if (!team) {
+    // Find user's slot assignment
+    const slot = await getSlotForManager(session.user.id);
+    if (!slot) {
       return NextResponse.json(
-        { error: "No team found for this user" },
+        { error: "No team slot assigned to this user" },
         { status: 404 }
       );
     }
 
-    // Keeper selections are for NEXT year (team's season + 1)
-    const targetYear = team.seasonYear + 1;
-    const result = await getTeamKeeperSelections(team.id, targetYear);
+    // Get active season to determine years (prevents cascade bug)
+    const activeSeason = await db.season.findFirst({ where: { isActive: true } });
+    if (!activeSeason) {
+      return NextResponse.json(
+        { error: "No active season configured" },
+        { status: 404 }
+      );
+    }
+
+    const targetYear = activeSeason.year;  // Selecting keepers FOR this year
+    const rosterYear = targetYear - 1;      // Roster we're selecting FROM
+
+    // Find user's team for the roster year
+    const rosterTeam = await db.team.findFirst({
+      where: { slotId: slot.id, seasonYear: rosterYear },
+    });
+
+    if (!rosterTeam) {
+      return NextResponse.json(
+        { error: `No team found for ${rosterYear} season - import draft data first` },
+        { status: 404 }
+      );
+    }
+
+    // Ensure team exists for target year (enables keeper selection before draft import)
+    await ensureTeamForSlot(slot.id, targetYear);
+
+    const result = await getTeamKeeperSelections(rosterTeam.id, targetYear);
 
     if (!result) {
       return NextResponse.json(
@@ -69,48 +90,57 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user's most recent team
-    const team = await db.team.findFirst({
-      where: {
-        managerId: session.user.id,
-      },
-      orderBy: { seasonYear: "desc" },
-    });
-
-    if (!team) {
+    // Find user's slot assignment
+    const slot = await getSlotForManager(session.user.id);
+    if (!slot) {
       return NextResponse.json(
-        { error: "No team found for this user" },
+        { error: "No team slot assigned to this user" },
         { status: 404 }
       );
     }
 
-    // Select player for next year
-    const targetYear = team.seasonYear + 1;
+    // Get active season to determine years (prevents cascade bug)
+    const activeSeason = await db.season.findFirst({ where: { isActive: true } });
+    if (!activeSeason) {
+      return NextResponse.json(
+        { error: "No active season configured" },
+        { status: 404 }
+      );
+    }
 
-    // Get target season to check deadline
-    const targetSeason = await db.season.findUnique({
-      where: { year: targetYear },
+    const targetYear = activeSeason.year;  // Selecting keepers FOR this year
+    const rosterYear = targetYear - 1;      // Roster we're selecting FROM
+
+    // Find user's team for the roster year
+    const rosterTeam = await db.team.findFirst({
+      where: { slotId: slot.id, seasonYear: rosterYear },
     });
 
-    if (!targetSeason) {
-      return NextResponse.json({ error: "Target season not found" }, { status: 404 });
+    if (!rosterTeam) {
+      return NextResponse.json(
+        { error: `No team found for ${rosterYear} season - import draft data first` },
+        { status: 404 }
+      );
     }
+
+    // Ensure team exists for target year (enables keeper selection before draft import)
+    await ensureTeamForSlot(slot.id, targetYear);
 
     // Check if already finalized
     const existingSelections = await db.keeperSelection.findFirst({
-      where: { teamId: team.id, seasonYear: targetYear, isFinalized: true },
+      where: { teamId: rosterTeam.id, seasonYear: targetYear, isFinalized: true },
     });
     const isFinalized = !!existingSelections;
 
     // Check deadline
-    if (!canModifySelections(targetSeason.keeperDeadline, isFinalized)) {
+    if (!canModifySelections(activeSeason.keeperDeadline, isFinalized)) {
       return NextResponse.json(
         { error: "Cannot modify selections - deadline has passed or selections are finalized" },
         { status: 403 }
       );
     }
 
-    const result = await selectPlayer(team.id, playerId, targetYear);
+    const result = await selectPlayer(rosterTeam.id, playerId, targetYear);
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 });

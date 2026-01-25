@@ -313,4 +313,173 @@ describe("Keeper Cost Calculator", () => {
       ).toBe(null);
     });
   });
+
+  // ====================
+  // CHAIN BREAK SCENARIOS (TASK-601)
+  // ====================
+  // These tests document the expected calculation behavior when chain breaks are detected.
+  // The actual chain break detection happens in service.ts (findKeeperBaseAcquisition).
+  // These tests verify the calculator produces correct results given the correct base.
+
+  describe("Chain Break Scenarios (TASK-601)", () => {
+    describe("Danielle Hunter Example - Chain Broken", () => {
+      // Real data: 2023 DRAFT R19, 2024 DRAFT R19 (kept), 2025 FA (NOT kept)
+      // Chain is broken at 2025 FA - should use 2025 FA as base (R15)
+
+      it("2026 cost should be R15 (clean slate from 2025 FA)", () => {
+        // When chain is broken, service returns 2025 FA as base
+        // Calculator sees: FA acquired 2025, target 2026
+        const result = calculateKeeperCost({
+          acquisitionType: "FA",
+          originalDraftRound: null,
+          acquisitionYear: 2025,
+          targetYear: 2026,
+        });
+        expect(result.isEligible).toBe(true);
+        expect(result.keeperRound).toBe(15); // Y2: FA base cost
+        expect(result.yearsKept).toBe(1);
+      });
+
+      it("2027 cost should be R11 (Y3 from 2025 FA)", () => {
+        const result = calculateKeeperCost({
+          acquisitionType: "FA",
+          originalDraftRound: null,
+          acquisitionYear: 2025,
+          targetYear: 2027,
+        });
+        expect(result.isEligible).toBe(true);
+        expect(result.keeperRound).toBe(11); // Y3: 15 - 4 = 11
+        expect(result.yearsKept).toBe(2);
+      });
+    });
+
+    describe("Continuous Keeper - No Chain Break", () => {
+      // Example: 2023 DRAFT R10, 2024 DRAFT R10, 2025 DRAFT R10 (kept all years)
+      // Chain is continuous - should use 2023 DRAFT as base
+
+      it("2026 cost should be R2 (Year 4 from 2023 DRAFT)", () => {
+        // When chain is continuous, service returns 2023 DRAFT as base
+        // Calculator sees: DRAFT R10 acquired 2023, target 2026
+        const result = calculateKeeperCost({
+          acquisitionType: "DRAFT",
+          originalDraftRound: 10,
+          acquisitionYear: 2023,
+          targetYear: 2026,
+        });
+        expect(result.isEligible).toBe(true);
+        expect(result.keeperRound).toBe(2); // Y4: 10 - 8 = 2
+        expect(result.yearsKept).toBe(3);
+        expect(result.costReduction).toBe(8);
+      });
+
+      it("2027 should be INELIGIBLE (Year 5 from 2023 DRAFT)", () => {
+        const result = calculateKeeperCost({
+          acquisitionType: "DRAFT",
+          originalDraftRound: 10,
+          acquisitionYear: 2023,
+          targetYear: 2027,
+        });
+        expect(result.isEligible).toBe(false);
+        expect(result.keeperRound).toBe(null); // Y5: 10 - 12 = -2 < 1
+        expect(result.yearsKept).toBe(4);
+      });
+    });
+
+    describe("Chain Broken - Player Dropped Then Re-acquired as FA", () => {
+      // Example: 2024 DRAFT R8 (dropped mid-season), 2025 FA
+      // Chain broken - 2025 FA is clean slate
+
+      it("2026 cost should be R15 (clean slate from 2025 FA)", () => {
+        const result = calculateKeeperCost({
+          acquisitionType: "FA",
+          originalDraftRound: null,
+          acquisitionYear: 2025,
+          targetYear: 2026,
+        });
+        expect(result.isEligible).toBe(true);
+        expect(result.keeperRound).toBe(15);
+      });
+    });
+
+    describe("Trade Preserves History", () => {
+      // Example: 2023 DRAFT R9 on Slot 3, traded to Slot 10 in 2024
+      // Trade preserves history - use 2023 DRAFT R9 as base
+
+      it("2026 cost should be R1 (Year 4 from 2023 DRAFT R9)", () => {
+        // Trade doesn't reset clock - service finds original DRAFT
+        // Y2: R9, Y3: R9-4=R5, Y4: R9-8=R1
+        const result = calculateKeeperCost({
+          acquisitionType: "DRAFT",
+          originalDraftRound: 9,
+          acquisitionYear: 2023,
+          targetYear: 2026,
+        });
+        expect(result.isEligible).toBe(true);
+        expect(result.keeperRound).toBe(1); // Y4: 9 - 8 = 1 (still eligible!)
+        expect(result.yearsKept).toBe(3);
+        expect(result.costReduction).toBe(8);
+      });
+
+      it("2027 should be INELIGIBLE", () => {
+        const result = calculateKeeperCost({
+          acquisitionType: "DRAFT",
+          originalDraftRound: 9,
+          acquisitionYear: 2023,
+          targetYear: 2027,
+        });
+        expect(result.isEligible).toBe(false);
+        expect(result.keeperRound).toBe(null); // Y5: 9 - 12 = -3 < 1
+      });
+    });
+
+    describe("FA Same Season as Draft (Inherits Draft Round)", () => {
+      // Example: Player drafted R12 by Slot 2 in 2025, dropped, picked up as FA by Slot 10
+      // FA inherits the same-season draft round
+
+      it("2026 cost should be R12 (inherits same-season draft)", () => {
+        // Service finds the same-season DRAFT and returns it as base
+        const result = calculateKeeperCost({
+          acquisitionType: "DRAFT",
+          originalDraftRound: 12,
+          acquisitionYear: 2025,
+          targetYear: 2026,
+        });
+        expect(result.isEligible).toBe(true);
+        expect(result.keeperRound).toBe(12); // Y2: base draft round
+        expect(result.yearsKept).toBe(1);
+      });
+    });
+
+    describe("True FA (Never Drafted)", () => {
+      // Example: Player signed as FA in 2025, was never drafted by anyone
+
+      it("2026 cost should be R15 (true FA base)", () => {
+        const result = calculateKeeperCost({
+          acquisitionType: "FA",
+          originalDraftRound: null,
+          acquisitionYear: 2025,
+          targetYear: 2026,
+        });
+        expect(result.isEligible).toBe(true);
+        expect(result.keeperRound).toBe(15);
+      });
+    });
+
+    describe("Fresh Draft Year 2", () => {
+      // Example: Player drafted R7 in 2025, first year keeping
+
+      it("2026 cost should be R7 (Year 2 base cost)", () => {
+        const result = calculateKeeperCost({
+          acquisitionType: "DRAFT",
+          originalDraftRound: 7,
+          acquisitionYear: 2025,
+          targetYear: 2026,
+        });
+        expect(result.isEligible).toBe(true);
+        expect(result.keeperRound).toBe(7); // Y2: base cost
+        expect(result.yearsKept).toBe(1);
+        expect(result.costReduction).toBe(0);
+      });
+    });
+  });
 });

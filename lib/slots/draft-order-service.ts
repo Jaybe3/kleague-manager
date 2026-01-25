@@ -44,7 +44,7 @@ export async function getDraftOrderWithNames(
 
 /**
  * Get or create draft order for a season.
- * If no draft order exists, copies from the previous season.
+ * If no draft order exists, copies from the most recent season that has data.
  * If no previous season exists, creates default order (slot 1 = position 1, etc.)
  */
 export async function getOrCreateDraftOrder(
@@ -56,27 +56,36 @@ export async function getOrCreateDraftOrder(
     return existing;
   }
 
-  // Try to copy from previous season
-  const previousYear = seasonYear - 1;
-  const previousOrder = await getDraftOrderForSeason(previousYear);
+  // Find the most recent season with draft order data (not just previousYear)
+  const mostRecentSeason = await db.draftOrder.findFirst({
+    where: {
+      seasonYear: { lt: seasonYear },
+    },
+    orderBy: { seasonYear: "desc" },
+    select: { seasonYear: true },
+  });
 
-  if (previousOrder.length > 0) {
-    // Copy from previous season
-    const created = await Promise.all(
-      previousOrder.map((order) =>
-        db.draftOrder.create({
-          data: {
-            slotId: order.slotId,
-            seasonYear,
-            position: order.position,
-          },
-        })
-      )
-    );
-    return created.sort((a, b) => a.position - b.position);
+  if (mostRecentSeason) {
+    // Copy from the most recent season with data
+    const sourceOrder = await getDraftOrderForSeason(mostRecentSeason.seasonYear);
+
+    if (sourceOrder.length > 0) {
+      const created = await Promise.all(
+        sourceOrder.map((order) =>
+          db.draftOrder.create({
+            data: {
+              slotId: order.slotId,
+              seasonYear,
+              position: order.position,
+            },
+          })
+        )
+      );
+      return created.sort((a, b) => a.position - b.position);
+    }
   }
 
-  // No previous season - create default order
+  // No previous season with data - create default order
   const slots = await db.teamSlot.findMany({
     orderBy: { id: "asc" },
   });

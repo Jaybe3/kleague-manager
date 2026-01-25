@@ -46,13 +46,20 @@ export async function GET(request: NextRequest) {
     });
     const teamSeasons = seasonsWithTeams.map((s) => s.seasonYear);
 
-    // Combine: All seasons that have draft order OR teams, plus next year
+    // Get active season if one exists
+    const activeSeason = await db.season.findFirst({
+      where: { isActive: true },
+      select: { year: true },
+    });
+
+    // Combine: All seasons that have draft order OR teams, plus current year and next year
     const currentYear = new Date().getFullYear();
     const nextYear = currentYear + 1;
     const allSeasons = new Set([
       ...seasonsWithDraftOrder,
       ...teamSeasons,
-      nextYear, // Always include next year for future planning
+      currentYear,
+      nextYear, // Include next year for future planning
     ]);
     const availableSeasons = Array.from(allSeasons).sort((a, b) => b - a);
 
@@ -67,8 +74,8 @@ export async function GET(request: NextRequest) {
         );
       }
     } else {
-      // Default to next year (most useful for planning)
-      seasonYear = nextYear;
+      // Default to active season, or current year
+      seasonYear = activeSeason?.year ?? currentYear;
     }
 
     // Get or create draft order for this season

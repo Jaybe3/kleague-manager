@@ -1,25 +1,28 @@
-import type { KeeperCalculationInput, KeeperCalculationResult } from "./types";
+import type { KeeperCalculationInput, KeeperCalculationResult, KeeperRuleFlags } from "./types";
 import {
   FA_BASE_ROUND,
   COST_REDUCTION_PER_YEAR,
   MIN_KEEPER_ROUND,
   YEARS_AT_BASE_COST,
+  DEFAULT_RULE_FLAGS,
 } from "./types";
 
 /**
  * Calculate keeper cost for a player
  *
- * RULES:
+ * RULES (controlled by ruleFlags):
  * - Drafted players: Keep at draft round for Y2, then -4 per year starting Y3
  * - Free agents: Keep at round 15 for Y2, then -4 per year starting Y3
  * - Trades: Use original acquisition (draft or FA), trade doesn't reset clock
- * - Ineligible: If calculated round < 1
+ * - Ineligible: If calculated round < 1 (when keeperIneligibility enabled)
  *
  * @param input - Calculation input with acquisition info and target year
+ * @param ruleFlags - Optional rule flags (defaults to all rules enabled)
  * @returns Calculation result with keeper round or ineligibility
  */
 export function calculateKeeperCost(
-  input: KeeperCalculationInput
+  input: KeeperCalculationInput,
+  ruleFlags: KeeperRuleFlags = DEFAULT_RULE_FLAGS
 ): KeeperCalculationResult {
   const { acquisitionType, originalDraftRound, acquisitionYear, targetYear } = input;
 
@@ -41,11 +44,13 @@ export function calculateKeeperCost(
 
   // Determine base round
   // - DRAFT: use the draft round
-  // - FA: use FA_BASE_ROUND (15)
+  // - FA: use FA_BASE_ROUND (15) if trueFaRound15 enabled, otherwise use draft round if inherited
   const baseRound =
     acquisitionType === "DRAFT"
       ? originalDraftRound ?? 0
-      : FA_BASE_ROUND;
+      : ruleFlags.trueFaRound15
+        ? FA_BASE_ROUND
+        : (originalDraftRound ?? FA_BASE_ROUND); // Fall back to 15 if no inherited round
 
   // Validate base round for drafted players
   if (acquisitionType === "DRAFT" && (baseRound < 1 || baseRound > 28)) {
@@ -68,21 +73,23 @@ export function calculateKeeperCost(
   // Example: Acquired 2024, Target 2025 -> yearsKept = 1
   const yearsKept = targetYear - acquisitionYear;
 
-  // Calculate cost reduction
+  // Calculate cost reduction (only if keeperCostYear3Plus rule is enabled)
   // - Year 1 (Y2): No reduction (keep at base round)
-  // - Year 2+ (Y3+): Reduce by 4 for each year beyond year 1
+  // - Year 2+ (Y3+): Reduce by 4 for each year beyond year 1 (if rule enabled)
   //   Y3: -4, Y4: -8, Y5: -12, etc.
   let costReduction = 0;
-  if (yearsKept > YEARS_AT_BASE_COST) {
+  if (ruleFlags.keeperCostYear3Plus && yearsKept > YEARS_AT_BASE_COST) {
     costReduction = COST_REDUCTION_PER_YEAR * (yearsKept - YEARS_AT_BASE_COST);
   }
 
   // Calculate keeper round
   const calculatedRound = baseRound - costReduction;
 
-  // Check eligibility
+  // Check eligibility (only if keeperIneligibility rule is enabled)
   // Player is ineligible if calculated round < MIN_KEEPER_ROUND (1)
-  const isEligible = calculatedRound >= MIN_KEEPER_ROUND;
+  const isEligible = ruleFlags.keeperIneligibility
+    ? calculatedRound >= MIN_KEEPER_ROUND
+    : true; // If rule disabled, always eligible
   const keeperRound = isEligible ? calculatedRound : null;
   const ineligibleReason = isEligible
     ? undefined
@@ -108,12 +115,14 @@ export function calculateKeeperCost(
  * @param input - Base calculation input (uses acquisitionYear and acquisitionType)
  * @param startYear - First year to calculate
  * @param endYear - Last year to calculate
+ * @param ruleFlags - Optional rule flags (defaults to all rules enabled)
  * @returns Array of calculation results for each year
  */
 export function calculateKeeperProgression(
   input: Omit<KeeperCalculationInput, "targetYear">,
   startYear: number,
-  endYear: number
+  endYear: number,
+  ruleFlags: KeeperRuleFlags = DEFAULT_RULE_FLAGS
 ): KeeperCalculationResult[] {
   const results: KeeperCalculationResult[] = [];
 
@@ -122,7 +131,7 @@ export function calculateKeeperProgression(
       calculateKeeperCost({
         ...input,
         targetYear: year,
-      })
+      }, ruleFlags)
     );
   }
 
@@ -177,18 +186,26 @@ export function getLastEligibleYear(
  * Determine if a player can be kept in a specific year
  *
  * @param input - Calculation input
+ * @param ruleFlags - Optional rule flags (defaults to all rules enabled)
  * @returns true if player is eligible, false otherwise
  */
-export function canBeKept(input: KeeperCalculationInput): boolean {
-  return calculateKeeperCost(input).isEligible;
+export function canBeKept(
+  input: KeeperCalculationInput,
+  ruleFlags: KeeperRuleFlags = DEFAULT_RULE_FLAGS
+): boolean {
+  return calculateKeeperCost(input, ruleFlags).isEligible;
 }
 
 /**
  * Get the keeper round for a player (or null if ineligible)
  *
  * @param input - Calculation input
+ * @param ruleFlags - Optional rule flags (defaults to all rules enabled)
  * @returns Keeper round or null
  */
-export function getKeeperRound(input: KeeperCalculationInput): number | null {
-  return calculateKeeperCost(input).keeperRound;
+export function getKeeperRound(
+  input: KeeperCalculationInput,
+  ruleFlags: KeeperRuleFlags = DEFAULT_RULE_FLAGS
+): number | null {
+  return calculateKeeperCost(input, ruleFlags).keeperRound;
 }

@@ -150,3 +150,59 @@ export const MIN_KEEPER_ROUND = 1;
  * Y2 = base cost, Y3 = first -4 reduction
  */
 export const YEARS_AT_BASE_COST = 1;
+
+// ============= Rule Flags (TASK-603) =============
+
+/**
+ * Rule flags for keeper calculation.
+ * These control which league rules are active for a given calculation.
+ * Service layer fetches from DB via isRuleActive(), passes to calculator.
+ */
+export interface KeeperRuleFlags {
+  /** KEEPER_COST_YEAR_2: Keep at base cost in Year 2 */
+  keeperCostYear2: boolean;
+
+  /** KEEPER_COST_YEAR_3_PLUS: -4 per year starting Year 3 */
+  keeperCostYear3Plus: boolean;
+
+  /** KEEPER_INELIGIBILITY: Player ineligible when cost < R1 */
+  keeperIneligibility: boolean;
+
+  /** TRUE_FA_ROUND_15: True FAs use R15 as base */
+  trueFaRound15: boolean;
+
+  /** TRADE_INHERITS_COST: Trades preserve original acquisition history */
+  tradeInheritsCost: boolean;
+
+  /** FA_INHERITS_DRAFT_ROUND: FA inherits same-season draft round */
+  faInheritsDraftRound: boolean;
+
+  /** KEEPER_ROUND_BUMP: Round bump feature during keeper selection */
+  keeperRoundBump: boolean;
+}
+
+/**
+ * Default rule flags - all rules enabled (current behavior)
+ */
+export const DEFAULT_RULE_FLAGS: KeeperRuleFlags = {
+  keeperCostYear2: true,
+  keeperCostYear3Plus: true,
+  keeperIneligibility: true,
+  trueFaRound15: true,
+  tradeInheritsCost: true,
+  faInheritsDraftRound: true,
+  keeperRoundBump: true,
+};
+
+/**
+ * Rule code to flag key mapping
+ */
+export const RULE_CODE_TO_FLAG: Record<string, keyof KeeperRuleFlags> = {
+  KEEPER_COST_YEAR_2: "keeperCostYear2",
+  KEEPER_COST_YEAR_3_PLUS: "keeperCostYear3Plus",
+  KEEPER_INELIGIBILITY: "keeperIneligibility",
+  TRUE_FA_ROUND_15: "trueFaRound15",
+  TRADE_INHERITS_COST: "tradeInheritsCost",
+  FA_INHERITS_DRAFT_ROUND: "faInheritsDraftRound",
+  KEEPER_ROUND_BUMP: "keeperRoundBump",
+};
