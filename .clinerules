@@ -5,7 +5,7 @@
 This project follows the Verified Development Framework. Every action must be transparent and independently verifiable by the user.
 
 ### MANDATORY WORKFLOW (NEVER SKIP):
-1. READ PRD.md, TASKS.md, DEVELOPMENT.md before ANY coding
+1. READ PRD.md, tasks/INDEX.md, docs/DEVELOPMENT.md before ANY coding
 2. CREATE detailed specification for current task
 3. WAIT for explicit user approval on specification
 4. IMPLEMENT incrementally (one small piece at a time)
@@ -25,9 +25,10 @@ This project follows the Verified Development Framework. Every action must be tr
 
 ### DOCUMENTATION REQUIREMENTS (MANDATORY):
 After ANY task completion or significant code changes, update:
-1. HANDOFF.md - Current state, schema changes, architecture decisions
-2. TASKS.md - Task status, completion notes, new issues discovered
-3. .clinerules - If any rules, patterns, or critical learnings changed
+1. Relevant docs in `docs/` folder (ARCHITECTURE.md, API.md, DATABASE.md, etc.)
+2. Task file in `tasks/` folder (move to completed, update all sections)
+3. `tasks/INDEX.md` - Update status and summary
+4. `.clinerules` - If any rules, patterns, or critical learnings changed
 
 A task is NOT complete until documentation is updated.
 Never close a task without verifying these files reflect current reality.
@@ -54,7 +55,6 @@ Never close a task without verifying these files reflect current reality.
 ## Keeper Route Pattern (CRITICAL - Added 2026-01-25)
 
 **All keeper API routes MUST use this pattern to avoid cascade bugs:**
-
 ```typescript
 // 1. Get user's slot (permanent league position)
 const slot = await getSlotForManager(session.user.id);
@@ -128,4 +128,87 @@ Algorithm:
 
 ---
 
-**Last Updated:** January 25, 2026
+## Documentation Standards (Added 2026-02-01)
+
+### Project File Structure
+kleague-manager/
+├── .clinerules              # Development rules (THIS FILE)
+├── PRD.md                   # Product requirements
+├── ADMIN-GUIDE.md           # Operational guide
+├── docs/
+│   ├── README.md            # Project overview (investor/stakeholder facing)
+│   ├── ARCHITECTURE.md      # System design, diagrams, decisions
+│   ├── DATABASE.md          # Schema, ERD, relationships
+│   ├── API.md               # Full endpoint reference
+│   ├── DEVELOPMENT.md       # Developer setup & workflow
+│   ├── TESTING.md           # Test strategy & coverage
+│   ├── DEPLOYMENT.md        # Environments & deploy process
+│   ├── SECURITY.md          # Auth, access control
+│   ├── CHANGELOG.md         # Release history
+│   ├── ROADMAP.md           # Future plans
+│   └── PROCESS.md           # Development process explanation
+├── tasks/
+│   ├── INDEX.md             # Master task dashboard (ALWAYS update)
+│   ├── active/              # Currently in-progress tasks
+│   ├── backlog/             # Prioritized future work
+│   ├── completed/           # Done tasks (organized by phase)
+│   │   ├── phase-0-setup/
+│   │   ├── phase-1-import/
+│   │   ├── phase-2-keepers/
+│   │   ├── phase-3-draft-board/
+│   │   ├── phase-4-admin/
+│   │   ├── phase-5-ui/
+│   │   └── phase-6-refactor/
+│   ├── bugs/                # Bug tracking
+│   └── templates/
+│       └── TASK-TEMPLATE.md # Standard format for all tasks
+└── [source code...]
+
+### Task Lifecycle (MANDATORY)
+
+1. **CREATE** - New task created from `tasks/templates/TASK-TEMPLATE.md`
+2. **SPECIFY** - Full specification written in task file, user approves
+3. **IMPLEMENT** - Code written incrementally with verification at each step
+4. **DOCUMENT** - All sections of task file completed (no empty sections)
+5. **VERIFY** - User confirms working via provided verification commands
+6. **CLOSE** - Task file moved to `tasks/completed/{phase}/`, INDEX.md updated
+
+### Definition of Done (A task is NOT complete until ALL checked):
+
+- [ ] All acceptance criteria in task file checked off
+- [ ] "Files Created" table populated (if applicable)
+- [ ] "Files Modified" table populated (if applicable)
+- [ ] Verification commands provided AND executed successfully
+- [ ] "Completion Notes" section written with actual outcome
+- [ ] Task file moved to `tasks/completed/{phase}/`
+- [ ] `tasks/INDEX.md` updated with completion status
+- [ ] Related docs updated if applicable (ARCHITECTURE.md, API.md, DATABASE.md)
+- [ ] User has explicitly approved closure
+
+### When Starting ANY Session
+
+1. Read `.clinerules` (this file)
+2. Read `tasks/INDEX.md` for current project status
+3. Read any active task file in `tasks/active/`
+4. Confirm with user which task to work on before ANY coding
+5. If new task needed, create from template first
+
+### Task File Requirements
+
+Every task file MUST contain these sections (use template):
+- Status, Dates, Priority, Dependencies, Phase
+- Objective (1-2 sentences)
+- Background (why this task exists)
+- Specification (detailed requirements)
+- Technical Approach (how it will be implemented)
+- Files Created/Modified (tables)
+- Acceptance Criteria (checkboxes)
+- Verification (commands/steps)
+- Completion Notes (what actually happened)
+- Related (links to other tasks/docs)
+
+Empty sections are NOT acceptable. Write "N/A - [reason]" if truly not applicable.
+
+---
+
+**Last Updated:** February 1, 2026
