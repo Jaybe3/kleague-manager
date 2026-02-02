@@ -1,6 +1,6 @@
 # KLeague Manager - Task Index
 
-**Last Updated:** February 1, 2026
+**Last Updated:** February 2, 2026
 
 ---
 
@@ -8,9 +8,9 @@
 
 | Metric | Count |
 |--------|-------|
-| Completed Tasks | 38 |
+| Completed Tasks | 40 |
 | Active Tasks | 0 |
-| Backlog Tasks | 6 |
+| Backlog Tasks | 4 |
 | Bugs Fixed | 2 |
 
 ---
@@ -25,9 +25,7 @@
 
 | Task | Priority | Description |
 |------|----------|-------------|
-| [TASK-201-REVISIT](./backlog/TASK-201-REVISIT.md) | Low | Improve Bump UX |
-| [TASK-303b](./backlog/TASK-303b.md) | Low | Integrate Rules into Keeper Calculation |
-| [TASK-501a](./backlog/TASK-501a.md) | Low | Draft Board Horizontal Scroll UX |
+| [TASK-702](./backlog/TASK-702.md) | Medium | Commissioner View Other Teams |
 | [TASK-600](./backlog/TASK-600.md) | Low | Backfill Historical Keeper Selections |
 | [TASK-600d](./backlog/TASK-600d.md) | Low | Slot-Centric Cleanup (Technical Debt) |
 | [TASK-601-REDESIGN](./backlog/TASK-601-REDESIGN.md) | Low | Redesign Trade Entry Feature |
@@ -52,9 +50,10 @@
 
 ### Phase 2: Keepers (3 tasks)
 - [TASK-201](./completed/phase-2-keepers/TASK-201.md) - Keeper Selection Interface
+- [TASK-201-REVISIT](./completed/phase-2-keepers/TASK-201-REVISIT.md) - Improve Bump UX
 - [TASK-203](./completed/phase-2-keepers/TASK-203.md) - Deadline Enforcement
 
-### Phase 3: Draft Board (3 tasks)
+### Phase 3: Draft Board (4 tasks)
 - [TASK-300](./completed/phase-3-draft-board/TASK-300.md) - Draft Board Grid Display
 - [TASK-301](./completed/phase-3-draft-board/TASK-301.md) - Draft Board with Draft Order Management
 - [TASK-302](./completed/phase-3-draft-board/TASK-302.md) - Admin Keeper Override
@@ -63,7 +62,8 @@
 ### Phase 4: Admin (1 task)
 - [TASK-400](./completed/phase-4-admin/TASK-400.md) - Manual Trade Entry
 
-### Phase 5: UI (10 tasks)
+### Phase 5: UI (12 tasks)
+- [TASK-501a](./completed/phase-5-ui/TASK-501a.md) - Draft Board Horizontal Scroll UX
 - [TASK-501b](./completed/phase-5-ui/TASK-501b.md) - Keepers Page Performance
 - [TASK-501c](./completed/phase-5-ui/TASK-501c.md) - Keeper Override Player Dropdown Performance
 - [TASK-501d](./completed/phase-5-ui/TASK-501d.md) - UI Foundation - Design System & Layout Shell
@@ -77,7 +77,7 @@
 - [TASK-501l](./completed/phase-5-ui/TASK-501l.md) - Restyle Admin Rules + Seasons Pages
 - [TASK-501m](./completed/phase-5-ui/TASK-501m.md) - Restyle Auth Pages
 
-### Phase 6: Refactor (6 tasks)
+### Phase 6: Refactor (7 tasks)
 - [TASK-600a](./completed/phase-6-refactor/TASK-600a.md) - Schema Additions (Non-Breaking)
 - [TASK-600b](./completed/phase-6-refactor/TASK-600b.md) - Data Backfill
 - [TASK-600c](./completed/phase-6-refactor/TASK-600c.md) - Code Migration
@@ -99,5 +99,6 @@
 | TASK-106 | Slots system solved the problem |
 | TASK-200 | Duplicate of TASK-102 |
 | TASK-202 | Merged into TASK-201 |
+| TASK-303b | Replaced by TASK-603 (Rules Engine Integration) |
 | TASK-401 | Covered by TASK-105 |
 | TASK-402 | Removed from scope |
