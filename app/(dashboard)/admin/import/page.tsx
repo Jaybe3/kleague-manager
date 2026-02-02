@@ -14,6 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TradeBuilder, TradeData } from "@/components/admin/trade-builder";
+import { TradePreview } from "@/components/admin/trade-preview";
 
 type ImportType = "draft" | "fa";
 type InputMode = "text" | "file";
@@ -401,259 +403,236 @@ function ImportResultDisplay({ result }: { result: ImportResult }) {
 // ============= Trade Section =============
 
 function TradeSection() {
-  const [seasonYear, setSeasonYear] = useState("2024");
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [teamsLoaded, setTeamsLoaded] = useState(false);
+  const [seasonYear, setSeasonYear] = useState<number | null>(null);
+  const [teams, setTeams] = useState<{ slotId: number; teamName: string }[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [seasonsLoading, setSeasonsLoading] = useState(true);
 
-  // Form fields
-  const [playerFirstName, setPlayerFirstName] = useState("");
-  const [playerLastName, setPlayerLastName] = useState("");
-  const [playerPosition, setPlayerPosition] = useState("");
-  const [fromTeam, setFromTeam] = useState("");
-  const [toTeam, setToTeam] = useState("");
-  const [tradeDate, setTradeDate] = useState("");
+  // Trade preview state
+  const [pendingTrade, setPendingTrade] = useState<TradeData | null>(null);
 
-  async function loadTeams() {
-    try {
-      const response = await fetch(
-        `/api/admin/trade?action=teams&seasonYear=${seasonYear}`
-      );
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Failed to load teams");
-        return;
+  // Fetch seasons on mount
+  useEffect(() => {
+    async function fetchSeasons() {
+      try {
+        const res = await fetch("/api/admin/seasons");
+        if (res.ok) {
+          const data = await res.json();
+          const sortedSeasons = (data.seasons as Season[]).sort(
+            (a, b) => a.year - b.year
+          );
+          setSeasons(sortedSeasons);
+          // Default to the active season, or the most recent one
+          const activeSeason = sortedSeasons.find((s) => s.isActive);
+          const defaultSeason =
+            activeSeason || sortedSeasons[sortedSeasons.length - 1];
+          if (defaultSeason) {
+            setSeasonYear(defaultSeason.year);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch seasons:", err);
+      } finally {
+        setSeasonsLoading(false);
       }
-
-      setTeams(data.teams);
-      setTeamsLoaded(true);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load teams");
     }
-  }
+    fetchSeasons();
+  }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
+  // Fetch teams when season changes
+  useEffect(() => {
+    if (!seasonYear) return;
+
+    async function fetchTeams() {
+      setTeamsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `/api/admin/trade?action=teams&seasonYear=${seasonYear}`
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+          setError(data.error || "Failed to load teams");
+          setTeams([]);
+          return;
+        }
+
+        // Map to the format TradeBuilder expects
+        const mappedTeams = data.teams.map((t: Team) => ({
+          slotId: t.slotId,
+          teamName: t.teamName,
+        }));
+        setTeams(mappedTeams);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load teams");
+        setTeams([]);
+      } finally {
+        setTeamsLoading(false);
+      }
+    }
+    fetchTeams();
+  }, [seasonYear]);
+
+  const handlePreview = (trade: TradeData) => {
     setError(null);
     setSuccess(null);
+    setPendingTrade(trade);
+  };
 
-    // Generate PlayerMatch key
-    const playerMatchKey = `${playerFirstName}${playerLastName}`.replace(/\s/g, "");
+  const handleCancelPreview = () => {
+    setPendingTrade(null);
+  };
+
+  const handleConfirmTrade = async () => {
+    if (!pendingTrade) return;
+
+    setLoading(true);
+    setError(null);
 
     try {
       const response = await fetch("/api/admin/trade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          playerMatchKey,
-          playerFirstName,
-          playerLastName,
-          playerPosition,
-          fromTeamName: fromTeam,
-          toTeamName: toTeam,
-          tradeDate,
-          seasonYear,
+          teamA: {
+            slotId: pendingTrade.teamA.slotId,
+            playerIds: pendingTrade.teamA.players.map((p) => p.id),
+          },
+          teamB: {
+            slotId: pendingTrade.teamB.slotId,
+            playerIds: pendingTrade.teamB.players.map((p) => p.id),
+          },
+          tradeDate: pendingTrade.tradeDate,
+          seasonYear: pendingTrade.seasonYear,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Failed to enter trade");
+        setError(data.error || "Failed to record trade");
         return;
       }
 
       setSuccess(data.message);
-      // Clear form
-      setPlayerFirstName("");
-      setPlayerLastName("");
-      setPlayerPosition("");
-      setFromTeam("");
-      setToTeam("");
-      setTradeDate("");
+      setPendingTrade(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to enter trade");
+      setError(err instanceof Error ? err.message : "Failed to record trade");
     } finally {
       setLoading(false);
     }
+  };
+
+  // Season selector
+  if (seasonsLoading) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        Loading seasons...
+      </div>
+    );
+  }
+
+  if (seasons.length === 0) {
+    return (
+      <div className="text-center py-8 text-warning">
+        <p>No seasons found. Please create a season first.</p>
+      </div>
+    );
   }
 
   return (
-    <div>
-      <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-md">
-        <h3 className="font-medium text-primary mb-2">
-          Manual Trade Entry
-        </h3>
+    <div className="space-y-6">
+      {/* Instructions */}
+      <div className="p-4 bg-primary/10 border border-primary/20 rounded-md">
+        <h3 className="font-medium text-primary mb-2">Multi-Player Trade Entry</h3>
         <p className="text-sm text-primary/80">
-          Enter trade details manually. The player will retain their original draft round/pick.
+          Select teams and add players from each roster. Players retain their
+          original draft round for keeper cost calculations.
         </p>
       </div>
 
-      {/* Season Year Selection */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-foreground mb-2">
+      {/* Season Selector */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-foreground">
           Season Year
         </label>
-        <div className="flex gap-2">
-          <Input
-            type="number"
-            value={seasonYear}
-            onChange={(e) => {
-              setSeasonYear(e.target.value);
-              setTeamsLoaded(false);
-              setTeams([]);
-            }}
-            min={2000}
-            max={2100}
-            className="flex-1"
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={loadTeams}
-          >
-            Load Teams
-          </Button>
-        </div>
+        <Select
+          value={seasonYear ? String(seasonYear) : ""}
+          onValueChange={(v) => {
+            setSeasonYear(parseInt(v, 10));
+            setPendingTrade(null);
+            setSuccess(null);
+            setError(null);
+          }}
+        >
+          <SelectTrigger className="w-48 bg-background border-border">
+            <SelectValue placeholder="Select season" />
+          </SelectTrigger>
+          <SelectContent>
+            {seasons.map((season) => (
+              <SelectItem key={season.year} value={String(season.year)}>
+                {season.year}
+                {season.isActive ? " - Active" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {!teamsLoaded ? (
+      {/* Loading teams */}
+      {teamsLoading && (
         <div className="text-center py-8 text-muted-foreground">
-          <p>Select a season year and click "Load Teams" to enter a trade.</p>
-          <p className="text-sm mt-2">Teams must exist (import draft data first).</p>
+          Loading teams...
         </div>
-      ) : teams.length === 0 ? (
+      )}
+
+      {/* No teams */}
+      {!teamsLoading && teams.length === 0 && seasonYear && (
         <div className="text-center py-8 text-warning">
           <p>No teams found for season {seasonYear}.</p>
-          <p className="text-sm mt-2 text-warning/80">Import draft data first to create teams.</p>
+          <p className="text-sm mt-2 text-warning/80">
+            Import draft data first to create teams.
+          </p>
         </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Player Info */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                First Name
-              </label>
-              <Input
-                type="text"
-                value={playerFirstName}
-                onChange={(e) => setPlayerFirstName(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Last Name
-              </label>
-              <Input
-                type="text"
-                value={playerLastName}
-                onChange={(e) => setPlayerLastName(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Position
-              </label>
-              <Select value={playerPosition} onValueChange={setPlayerPosition} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="QB">QB</SelectItem>
-                  <SelectItem value="RB">RB</SelectItem>
-                  <SelectItem value="WR">WR</SelectItem>
-                  <SelectItem value="TE">TE</SelectItem>
-                  <SelectItem value="K">K</SelectItem>
-                  <SelectItem value="DEF">DEF</SelectItem>
-                  <SelectItem value="LB">LB</SelectItem>
-                  <SelectItem value="DB">DB</SelectItem>
-                  <SelectItem value="DL">DL</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+      )}
 
-          {/* Teams */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                From Team
-              </label>
-              <Select value={fromTeam} onValueChange={setFromTeam} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select team..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((team) => (
-                    <SelectItem key={team.id} value={team.teamName}>
-                      {team.teamName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                To Team
-              </label>
-              <Select value={toTeam} onValueChange={setToTeam} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select team..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((team) => (
-                    <SelectItem key={team.id} value={team.teamName}>
-                      {team.teamName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Trade Date */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              Trade Date
-            </label>
-            <Input
-              type="date"
-              value={tradeDate}
-              onChange={(e) => setTradeDate(e.target.value)}
-              required
+      {/* Trade Builder or Preview */}
+      {!teamsLoading && teams.length > 0 && seasonYear && (
+        <>
+          {pendingTrade ? (
+            <TradePreview
+              trade={pendingTrade}
+              onConfirm={handleConfirmTrade}
+              onCancel={handleCancelPreview}
+              loading={loading}
             />
-          </div>
-
-          {/* Submit Button */}
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full"
-          >
-            {loading ? "Recording Trade..." : "Record Trade"}
-          </Button>
-        </form>
+          ) : (
+            <TradeBuilder
+              seasonYear={seasonYear}
+              teams={teams}
+              onPreview={handlePreview}
+              loading={loading}
+            />
+          )}
+        </>
       )}
 
       {/* Error Display */}
       {error && (
-        <div className="mt-4 p-4 bg-error/10 border border-error/20 rounded-md">
-          <p className="text-error">{error}</p>
+        <div className="p-4 bg-error/10 border border-error/20 rounded-md">
+          <p className="text-error font-medium">Error: {error}</p>
         </div>
       )}
 
       {/* Success Display */}
       {success && (
-        <div className="mt-4 p-4 bg-success/10 border border-success/20 rounded-md">
-          <p className="text-success">{success}</p>
+        <div className="p-4 bg-success/10 border border-success/20 rounded-md">
+          <p className="text-success font-medium">{success}</p>
         </div>
       )}
     </div>
