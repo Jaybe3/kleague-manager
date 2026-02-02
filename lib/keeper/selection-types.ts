@@ -46,6 +46,7 @@ export interface KeeperSelectionsResponse {
     id: string;
     teamName: string;
     seasonYear: number;
+    slotId: number;
   };
   season: {
     year: number;
@@ -57,6 +58,9 @@ export interface KeeperSelectionsResponse {
   conflicts: RoundConflict[];
   isFinalized: boolean;
   deadlineInfo: DeadlineInfo;
+  // Commissioner viewing fields (optional - only present in API response)
+  isViewingOther?: boolean;
+  isCommissioner?: boolean;
 }
 
 export interface SelectPlayerResult {

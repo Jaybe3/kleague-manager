@@ -227,6 +227,7 @@ export async function getTeamKeeperSelections(
       id: team.id,
       teamName: team.teamName,
       seasonYear: team.seasonYear,
+      slotId: team.slotId,
     },
     season: {
       year: season.year,

@@ -8,16 +8,16 @@
 
 | Metric | Count |
 |--------|-------|
-| Completed Tasks | 40 |
+| Completed Tasks | 41 |
 | Active Tasks | 0 |
-| Backlog Tasks | 4 |
+| Backlog Tasks | 3 |
 | Bugs Fixed | 2 |
 
 ---
 
 ## Active Tasks
 
-*No tasks currently in progress.*
+None
 
 ---
 
@@ -25,7 +25,6 @@
 
 | Task | Priority | Description |
 |------|----------|-------------|
-| [TASK-702](./backlog/TASK-702.md) | Medium | Commissioner View Other Teams |
 | [TASK-600](./backlog/TASK-600.md) | Low | Backfill Historical Keeper Selections |
 | [TASK-600d](./backlog/TASK-600d.md) | Low | Slot-Centric Cleanup (Technical Debt) |
 | [TASK-601-REDESIGN](./backlog/TASK-601-REDESIGN.md) | Low | Redesign Trade Entry Feature |
@@ -59,8 +58,9 @@
 - [TASK-302](./completed/phase-3-draft-board/TASK-302.md) - Admin Keeper Override
 - [TASK-303](./completed/phase-3-draft-board/TASK-303.md) - League Rules Registry
 
-### Phase 4: Admin (1 task)
+### Phase 4: Admin (2 tasks)
 - [TASK-400](./completed/phase-4-admin/TASK-400.md) - Manual Trade Entry
+- [TASK-702](./completed/phase-4-admin/TASK-702.md) - Commissioner View Other Teams
 
 ### Phase 5: UI (12 tasks)
 - [TASK-501a](./completed/phase-5-ui/TASK-501a.md) - Draft Board Horizontal Scroll UX

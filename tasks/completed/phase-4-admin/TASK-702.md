@@ -1,7 +1,9 @@
 # TASK-702: Commissioner View Other Teams
 
-**Status:** BACKLOG
+**Status:** COMPLETED
 **Created:** February 2026
+**Started:** February 2, 2026
+**Completed:** February 2, 2026
 **Priority:** Medium
 **Depends On:** None
 **Phase:** Phase 7 - Commissioner Tools
@@ -66,7 +68,7 @@ As the commissioner, I want to view any team's roster and keeper cost informatio
 
 ### Option A: Query Parameter (Recommended)
 
-Add `?teamSlot=N` query parameter to My Team page:
+Add `?slotId=N` query parameter to My Team page:
 
 ```typescript
 // app/(dashboard)/my-team/page.tsx
@@ -78,8 +80,8 @@ export default async function MyTeamPage({ searchParams }) {
   let viewingSlot = user?.slotId;
 
   // Commissioner can override
-  if (user?.isCommissioner && searchParams.teamSlot) {
-    viewingSlot = parseInt(searchParams.teamSlot);
+  if (user?.isCommissioner && searchParams.slotId) {
+    viewingSlot = parseInt(searchParams.slotId);
   }
 
   // Fetch data for viewingSlot instead of user's slot
@@ -96,15 +98,9 @@ export default async function MyTeamPage({ searchParams }) {
 }
 ```
 
-### Option B: Separate Admin Page
-
-Create `/admin/view-team/[slot]` route:
-- Pros: Clear separation of concerns
-- Cons: Duplicates My Team UI, harder to maintain
-
 ### Recommendation
 
-Option A is simpler and keeps UI consistent. The commissioner sees the exact same view the manager sees.
+Option A (query parameter) is simpler and keeps UI consistent. The commissioner sees the exact same view the manager sees.
 
 ---
 
@@ -113,6 +109,7 @@ Option A is simpler and keeps UI consistent. The commissioner sees the exact sam
 | File | Purpose |
 |------|---------|
 | `components/my-team/team-selector.tsx` | Dropdown to select team (commissioner only) |
+| `app/api/slots/route.ts` | API endpoint to list all teams for selector |
 
 ---
 
@@ -120,22 +117,25 @@ Option A is simpler and keeps UI consistent. The commissioner sees the exact sam
 
 | File | Change |
 |------|--------|
-| `app/(dashboard)/my-team/page.tsx` | Add teamSlot query param handling |
-| `app/(dashboard)/my-team/keepers/page.tsx` | Add teamSlot query param, disable actions when viewing other |
-| `lib/keeper/service.ts` | Ensure slot-based queries work for any slot |
+| `app/(dashboard)/my-team/page.tsx` | Add slotId query param handling, integrate TeamSelector |
+| `app/(dashboard)/my-team/keepers/page.tsx` | Add slotId query param, disable actions when viewing other, Suspense boundary |
+| `app/api/my-team/route.ts` | Add slotId query param support with commissioner check |
+| `app/api/my-team/keepers/route.ts` | Add slotId query param support with commissioner check |
+| `lib/keeper/selection-service.ts` | Add slotId to team return object |
+| `lib/keeper/selection-types.ts` | Add slotId, isViewingOther, isCommissioner to response type |
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Commissioner sees team selector dropdown on My Team page
-- [ ] Selecting a team shows that team's roster
-- [ ] Clear visual indicator shows when viewing another team
-- [ ] Cannot modify keeper selections when viewing another team
-- [ ] Regular managers do not see team selector
-- [ ] Commissioner can switch back to their own team
-- [ ] Works on keepers sub-page as well
-- [ ] URL is shareable (query param based)
+- [x] Commissioner sees team selector dropdown on My Team page
+- [x] Selecting a team shows that team's roster
+- [x] Clear visual indicator shows when viewing another team
+- [x] Cannot modify keeper selections when viewing another team
+- [x] Regular managers do not see team selector
+- [x] Commissioner can switch back to their own team
+- [x] Works on keepers sub-page as well
+- [x] URL is shareable (query param based)
 
 ---
 
@@ -145,12 +145,12 @@ Option A is simpler and keeps UI consistent. The commissioner sees the exact sam
 2. Navigate to My Team page
 3. Verify team selector dropdown is visible
 4. Select a different team
-5. Verify URL updates to `?teamSlot=N`
+5. Verify URL updates to `?slotId=N`
 6. Verify roster shows selected team's players
-7. Verify "Viewing as: [Team Name]" indicator
+7. Verify "Viewing" badge indicator
 8. Navigate to keepers page
 9. Verify keeper data shows for selected team
-10. Verify no action buttons (select/deselect) are available
+10. Verify action buttons are hidden when viewing other team
 11. Log in as regular manager
 12. Verify team selector is NOT visible
 
@@ -158,7 +158,24 @@ Option A is simpler and keeps UI consistent. The commissioner sees the exact sam
 
 ## Completion Notes
 
-N/A - Not yet started
+### Implementation Summary
+
+Built commissioner "view other teams" feature using query parameter approach (`?slotId=N`):
+
+- **TeamSelector component**: Radix UI Select dropdown showing all 10 teams, with "(You)" indicator for own team
+- **API layer**: Both `/api/my-team` and `/api/my-team/keepers` updated to accept `slotId` param with commissioner-only access
+- **UI indicators**: Amber "Viewing" badge and read-only banner when viewing another team
+- **Read-only mode**: All action buttons (Select, Remove, Bump, Finalize) hidden when viewing another team
+
+### Issues Fixed
+
+1. **Hydration issue**: TeamSelector had unused `useSearchParams` import causing hydration errors - removed
+2. **Suspense boundary**: Keepers page needed Suspense wrapper for `useSearchParams` hook
+3. **Type error**: Removed unused `isReadOnly` prop from RosterTable
+
+### Performance Note
+
+Keepers page makes extra API call to fetch user's own slot when viewing another team (needed for "(You)" indicator in dropdown). Could be optimized by caching user's slot in session or passing from parent.
 
 ---
 
