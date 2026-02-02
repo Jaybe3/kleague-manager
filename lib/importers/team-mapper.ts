@@ -173,3 +173,82 @@ export async function addTeamAlias(
     },
   })
 }
+
+/**
+ * Resolve team name to slot, auto-creating alias if needed.
+ * Uses draft position to find the correct slot when team name is unknown.
+ *
+ * @param teamName - Team name from import data
+ * @param draftPosition - First round draft pick position (1-10)
+ * @param seasonYear - Season year being imported
+ * @returns slotId if resolved, null if cannot resolve
+ */
+export async function resolveTeamSlotWithAutoAlias(
+  teamName: string,
+  draftPosition: number,
+  seasonYear: number
+): Promise<{ slotId: number; created: boolean } | null> {
+  // First, try normal lookup
+  const existingSlotId = await getSlotIdFromTeamName(teamName, seasonYear)
+  if (existingSlotId) {
+    return { slotId: existingSlotId, created: false }
+  }
+
+  // Team name not found - try to resolve via draft position
+  // Draft position in round 1 determines which slot this team is
+  const draftOrder = await db.draftOrder.findFirst({
+    where: {
+      seasonYear,
+      position: draftPosition,
+    },
+  })
+
+  if (!draftOrder) {
+    // Can't resolve - draft order not set or invalid position
+    return null
+  }
+
+  const slotId = draftOrder.slotId
+
+  // Auto-create alias for this team name
+  // Use validFrom = seasonYear, validTo = null (current name for this slot)
+  const normalized = normalizeTeamName(teamName)
+
+  // Check if this exact alias already exists (case insensitive)
+  const existingAlias = await db.teamAlias.findFirst({
+    where: {
+      slotId,
+      teamName: {
+        equals: normalized,
+        mode: 'insensitive',
+      },
+    },
+  })
+
+  if (!existingAlias) {
+    // Close out previous current name for this slot
+    await db.teamAlias.updateMany({
+      where: {
+        slotId,
+        validTo: null,
+      },
+      data: {
+        validTo: seasonYear - 1,
+      },
+    })
+
+    // Create new alias as current name
+    await db.teamAlias.create({
+      data: {
+        slotId,
+        teamName: teamName.trim(), // Preserve original casing
+        validFrom: seasonYear,
+        validTo: null,
+      },
+    })
+
+    return { slotId, created: true }
+  }
+
+  return { slotId, created: false }
+}

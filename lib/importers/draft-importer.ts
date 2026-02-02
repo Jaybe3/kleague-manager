@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import type { ParsedDraftPick, ParsedPlayer } from "./types";
-import { getSlotIdFromTeamName, isValidTeamName } from "./team-mapper";
+import { getSlotIdFromTeamName, isValidTeamName, resolveTeamSlotWithAutoAlias } from "./team-mapper";
 import { getTotalRounds } from "./text-parser";
 
 // ============= Player Operations =============
@@ -185,13 +185,32 @@ export async function importDraftPicks(
     }
   }
 
+  // Track auto-created aliases to report once per team
+  const autoCreatedAliases = new Set<string>();
+
   for (const pick of picks) {
     try {
-      // Validate team name (async check)
-      const isValid = await isValidTeamName(pick.teamName);
-      if (!isValid) {
-        result.errors.push(`Unknown team: "${pick.teamName}" for player ${pick.player.firstName} ${pick.player.lastName}`);
+      // Resolve team name to slot, auto-creating alias if needed
+      const draftPosition = teamFirstPicks.get(pick.teamName.trim().toLowerCase()) || 1;
+      const resolution = await resolveTeamSlotWithAutoAlias(pick.teamName, draftPosition, pick.seasonYear);
+
+      if (!resolution) {
+        result.errors.push(
+          `Unknown team: "${pick.teamName}" for player ${pick.player.firstName} ${pick.player.lastName}. ` +
+          `Could not resolve via draft position. Check draft order configuration.`
+        );
         continue;
+      }
+
+      // Track auto-created aliases for reporting
+      if (resolution.created) {
+        const aliasKey = `${pick.teamName.trim()}-${pick.seasonYear}`;
+        if (!autoCreatedAliases.has(aliasKey)) {
+          autoCreatedAliases.add(aliasKey);
+          result.warnings.push(
+            `Auto-created team alias: "${pick.teamName}" → Slot ${resolution.slotId} (based on draft position ${draftPosition})`
+          );
+        }
       }
 
       // Find or create player
@@ -213,7 +232,6 @@ export async function importDraftPicks(
 
       // Find or create team
       const teamKey = `${pick.teamName.trim().toLowerCase()}-${pick.seasonYear}`;
-      const draftPosition = teamFirstPicks.get(pick.teamName.trim().toLowerCase()) || 1;
 
       if (!createdTeams.has(teamKey)) {
         const existingTeam = await getTeamId(pick.teamName, pick.seasonYear);

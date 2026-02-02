@@ -21,6 +21,35 @@ export * from "./team-mapper";
 export * from "./draft-importer";
 export * from "./transaction-importer";
 
+// ============= Validation Helpers =============
+
+/**
+ * Validate that draft order is set for the season.
+ * Draft order must be configured before importing draft data,
+ * as it's used to resolve unknown team names to slots.
+ *
+ * @throws Error if draft order is not fully configured (10 slots)
+ */
+async function validateDraftOrderExists(seasonYear: number): Promise<void> {
+  const draftOrders = await db.draftOrder.findMany({
+    where: { seasonYear },
+  });
+
+  if (draftOrders.length === 0) {
+    throw new Error(
+      `Draft order not set for ${seasonYear}. ` +
+      `Go to Admin > Draft Order and configure the draft order before importing.`
+    );
+  }
+
+  if (draftOrders.length !== 10) {
+    throw new Error(
+      `Incomplete draft order for ${seasonYear} (${draftOrders.length}/10 slots configured). ` +
+      `Go to Admin > Draft Order and complete the configuration before importing.`
+    );
+  }
+}
+
 // ============= Text Import Functions =============
 
 /**
@@ -48,6 +77,9 @@ export async function importDraftFromText(
   };
 
   try {
+    // Validate draft order is set (required for team name → slot resolution)
+    await validateDraftOrderExists(seasonYear);
+
     // Create season if needed
     await findOrCreateSeason(seasonYear);
 
@@ -186,6 +218,9 @@ export async function importDraftData(
   };
 
   try {
+    // Validate draft order is set (required for team name → slot resolution)
+    await validateDraftOrderExists(seasonYear);
+
     // Create season if needed
     await findOrCreateSeason(seasonYear);
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
-  getTeamKeeperSelections,
+  getSlotKeeperSelections,
   selectPlayer,
   canModifySelections,
 } from "@/lib/keeper/selection-service";
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       await ensureTeamForSlot(slotId, targetYear);
     }
 
-    const result = await getTeamKeeperSelections(rosterTeam.id, targetYear);
+    const result = await getSlotKeeperSelections(slotId, targetYear);
 
     if (!result) {
       return NextResponse.json(

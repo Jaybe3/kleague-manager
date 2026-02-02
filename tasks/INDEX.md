@@ -8,9 +8,9 @@
 
 | Metric | Count |
 |--------|-------|
-| Completed Tasks | 41 |
+| Completed Tasks | 42 |
 | Active Tasks | 0 |
-| Backlog Tasks | 3 |
+| Backlog Tasks | 2 |
 | Bugs Fixed | 2 |
 
 ---
@@ -26,7 +26,6 @@ None
 | Task | Priority | Description |
 |------|----------|-------------|
 | [TASK-600](./backlog/TASK-600.md) | Low | Backfill Historical Keeper Selections |
-| [TASK-600d](./backlog/TASK-600d.md) | Low | Slot-Centric Cleanup (Technical Debt) |
 | [TASK-601-REDESIGN](./backlog/TASK-601-REDESIGN.md) | Low | Redesign Trade Entry Feature |
 
 ---
@@ -77,10 +76,11 @@ None
 - [TASK-501l](./completed/phase-5-ui/TASK-501l.md) - Restyle Admin Rules + Seasons Pages
 - [TASK-501m](./completed/phase-5-ui/TASK-501m.md) - Restyle Auth Pages
 
-### Phase 6: Refactor (7 tasks)
+### Phase 6: Refactor (8 tasks)
 - [TASK-600a](./completed/phase-6-refactor/TASK-600a.md) - Schema Additions (Non-Breaking)
 - [TASK-600b](./completed/phase-6-refactor/TASK-600b.md) - Data Backfill
 - [TASK-600c](./completed/phase-6-refactor/TASK-600c.md) - Code Migration
+- [TASK-600d](./completed/phase-6-refactor/TASK-600d.md) - Slot-Centric Cleanup (Technical Debt)
 - [TASK-601](./completed/phase-6-refactor/TASK-601.md) - Keeper Calculation - Detect Chain Breaks
 - [TASK-603](./completed/phase-6-refactor/TASK-603.md) - Rules Engine Integration
 - [TASK-604](./completed/phase-6-refactor/TASK-604.md) - Slot 10 Keeper Cost Audit

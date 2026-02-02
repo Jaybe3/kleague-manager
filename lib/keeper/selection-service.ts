@@ -105,7 +105,40 @@ export function canModifySelections(deadline: Date, isFinalized: boolean): boole
 // ============= GET SELECTIONS =============
 
 /**
- * Get all keeper selections and eligible players for a team
+ * Get all keeper selections and eligible players for a slot.
+ * This is the primary function - uses slotId as the canonical identifier.
+ *
+ * @param slotId - Permanent slot ID (1-10)
+ * @param targetYear - Season year we're selecting keepers FOR
+ */
+export async function getSlotKeeperSelections(
+  slotId: number,
+  targetYear: number
+): Promise<KeeperSelectionsResponse | null> {
+  // Roster year is previous season (we select keepers FROM this roster)
+  const rosterYear = targetYear - 1;
+
+  // Get team for the roster year
+  const team = await db.team.findUnique({
+    where: {
+      slotId_seasonYear: {
+        slotId,
+        seasonYear: rosterYear,
+      },
+    },
+  });
+
+  if (!team) {
+    return null;
+  }
+
+  // Delegate to internal implementation
+  return getKeeperSelectionsForTeam(team, slotId, targetYear);
+}
+
+/**
+ * Get all keeper selections and eligible players for a team.
+ * @deprecated Use getSlotKeeperSelections instead - callers should use slotId as primary identifier
  */
 export async function getTeamKeeperSelections(
   teamId: string,
@@ -119,6 +152,20 @@ export async function getTeamKeeperSelections(
   if (!team) {
     return null;
   }
+
+  // Delegate to internal implementation
+  return getKeeperSelectionsForTeam(team, team.slotId, targetYear);
+}
+
+/**
+ * Internal implementation shared by both public functions
+ */
+async function getKeeperSelectionsForTeam(
+  team: { id: string; teamName: string; seasonYear: number; slotId: number },
+  slotId: number,
+  targetYear: number
+): Promise<KeeperSelectionsResponse | null> {
+  const teamId = team.id;
 
   // Get season info
   const season = await db.season.findUnique({
