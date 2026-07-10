@@ -14,6 +14,7 @@ import {
   Shield,
   Scale,
   Calendar,
+  UserCog,
 } from "lucide-react";
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
 ];
 
 const adminItems = [
+  { label: "View As", path: "/admin/view-as", icon: UserCog },
   { label: "Data Import", path: "/admin/import", icon: Database },
   { label: "Draft Order", path: "/admin/draft-order", icon: ListOrdered },
   { label: "Keeper Overrides", path: "/admin/keeper-overrides", icon: Shield },

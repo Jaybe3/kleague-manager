@@ -2,6 +2,7 @@
 
 import { Sidebar } from "./sidebar";
 import { BottomNav } from "./bottom-nav";
+import { ImpersonationBanner } from "./impersonation-banner";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -10,6 +11,9 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   return (
     <div className="min-h-screen bg-background">
+      {/* Impersonation banner (only visible while viewing as another user) */}
+      <ImpersonationBanner />
+
       {/* Desktop sidebar */}
       <Sidebar />
 
