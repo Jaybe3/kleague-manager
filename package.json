@@ -10,7 +10,11 @@
     "lint": "eslint",
     "test": "vitest",
     "test:run": "vitest run",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:migrate:local": "dotenv -e .env.local -- prisma migrate deploy",
+    "db:push:local": "dotenv -e .env.local -- prisma db push",
+    "db:seed:local": "dotenv -e .env.local -- tsx prisma/seed.ts",
+    "db:studio:local": "dotenv -e .env.local -- prisma studio"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -40,6 +44,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/ui": "^4.0.17",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "prisma": "^5.22.0",
