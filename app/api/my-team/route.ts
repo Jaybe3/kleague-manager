@@ -27,14 +27,7 @@ export async function GET(request: NextRequest) {
     let isViewingOther = false;
 
     if (slotIdParam) {
-      // Commissioner viewing another team
-      if (!session.user.isCommissioner) {
-        return NextResponse.json(
-          { error: "Forbidden - Commissioner access required" },
-          { status: 403 }
-        );
-      }
-
+      // Any authenticated manager can view another team's roster (read-only)
       const requestedSlotId = parseInt(slotIdParam, 10);
       if (isNaN(requestedSlotId) || requestedSlotId < 1 || requestedSlotId > 10) {
         return NextResponse.json(

@@ -43,8 +43,8 @@ export default async function MyTeamPage({ searchParams }: PageProps) {
   let targetSlotId: number | null = null;
   let isViewingOther = false;
 
-  if (slotIdParam && isCommissioner) {
-    // Commissioner viewing another team
+  if (slotIdParam) {
+    // Any manager can view another team's roster (read-only)
     const requestedSlotId = parseInt(slotIdParam, 10);
     if (!isNaN(requestedSlotId) && requestedSlotId >= 1 && requestedSlotId <= 10) {
       targetSlotId = requestedSlotId;
@@ -122,13 +122,11 @@ export default async function MyTeamPage({ searchParams }: PageProps) {
   // Get roster with keeper costs
   const roster = await getTeamRosterWithKeeperCosts(team.id, activeSeasonYear);
 
-  // Get all teams for commissioner dropdown
-  const allTeams = isCommissioner
-    ? (await getAllSlotsWithNames()).map((s) => ({
-        slotId: s.slotId,
-        teamName: s.teamName,
-      }))
-    : [];
+  // Get all teams for the team-switcher dropdown (available to all managers)
+  const allTeams = (await getAllSlotsWithNames()).map((s) => ({
+    slotId: s.slotId,
+    teamName: s.teamName,
+  }));
 
   // Build keepers link with slotId if viewing another team
   const keepersLink = isViewingOther
@@ -142,17 +140,17 @@ export default async function MyTeamPage({ searchParams }: PageProps) {
         description="View your roster and keeper eligibility"
         actions={
           <div className="flex items-center gap-3">
-            {isCommissioner && (
-              <TeamSelector
-                teams={allTeams}
-                currentSlotId={targetSlotId}
-                userSlotId={userSlotId}
-                basePath="/my-team"
-              />
+            <TeamSelector
+              teams={allTeams}
+              currentSlotId={targetSlotId}
+              userSlotId={userSlotId}
+              basePath="/my-team"
+            />
+            {(!isViewingOther || isCommissioner) && (
+              <Button asChild>
+                <Link href={keepersLink}>Manage Keepers</Link>
+              </Button>
             )}
-            <Button asChild>
-              <Link href={keepersLink}>Manage Keepers</Link>
-            </Button>
           </div>
         }
       />
