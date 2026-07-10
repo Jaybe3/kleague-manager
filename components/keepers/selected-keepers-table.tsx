@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { KeeperSelectionInfo } from "@/lib/keeper/selection-types";
 import {
   Table,
@@ -12,6 +12,18 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+type SortField = "name" | "position" | "calculatedRound" | "finalRound";
+type SortDirection = "asc" | "desc";
+
+const POSITION_ORDER: Record<string, number> = {
+  QB: 1,
+  RB: 2,
+  WR: 3,
+  TE: 4,
+  K: 5,
+  DEF: 6,
+};
 
 interface SelectedKeepersTableProps {
   selections: KeeperSelectionInfo[];
@@ -33,6 +45,53 @@ export function SelectedKeepersTable({
   const [loadingPlayerId, setLoadingPlayerId] = useState<string | null>(null);
   const [bumpOptionsPlayerId, setBumpOptionsPlayerId] = useState<string | null>(null);
   const [bumpOptions, setBumpOptions] = useState<number[]>([]);
+  const [sortField, setSortField] = useState<SortField>("finalRound");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  const sortedSelections = useMemo(() => {
+    return [...selections].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case "name":
+          comparison = `${a.player.firstName} ${a.player.lastName}`.localeCompare(
+            `${b.player.firstName} ${b.player.lastName}`
+          );
+          break;
+        case "position":
+          comparison =
+            (POSITION_ORDER[a.player.position] ?? 99) -
+            (POSITION_ORDER[b.player.position] ?? 99);
+          break;
+        case "calculatedRound":
+          comparison = a.calculatedRound - b.calculatedRound;
+          break;
+        case "finalRound":
+          comparison = a.finalRound - b.finalRound;
+          break;
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [selections, sortField, sortDirection]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const SortIndicator = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <span className="ml-1 text-muted-foreground/50">↕</span>;
+    }
+    return (
+      <span className="ml-1 text-primary">
+        {sortDirection === "asc" ? "↑" : "↓"}
+      </span>
+    );
+  };
 
   const handleRemove = async (playerId: string) => {
     setLoadingPlayerId(playerId);
@@ -88,17 +147,41 @@ export function SelectedKeepersTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
-              <TableHead className="py-3">Player</TableHead>
-              <TableHead className="py-3">Pos</TableHead>
-              <TableHead className="text-center py-3">Calculated Cost</TableHead>
-              <TableHead className="text-center py-3">Final Round</TableHead>
+              <TableHead
+                className="cursor-pointer hover:text-foreground transition-colors py-3"
+                onClick={() => handleSort("name")}
+              >
+                Player
+                <SortIndicator field="name" />
+              </TableHead>
+              <TableHead
+                className="cursor-pointer hover:text-foreground transition-colors py-3"
+                onClick={() => handleSort("position")}
+              >
+                Pos
+                <SortIndicator field="position" />
+              </TableHead>
+              <TableHead
+                className="text-center cursor-pointer hover:text-foreground transition-colors py-3"
+                onClick={() => handleSort("calculatedRound")}
+              >
+                Calculated Cost
+                <SortIndicator field="calculatedRound" />
+              </TableHead>
+              <TableHead
+                className="text-center cursor-pointer hover:text-foreground transition-colors py-3"
+                onClick={() => handleSort("finalRound")}
+              >
+                Final Round
+                <SortIndicator field="finalRound" />
+              </TableHead>
               {!isFinalized && (
                 <TableHead className="text-center py-3">Actions</TableHead>
               )}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {selections.map((selection) => {
+            {sortedSelections.map((selection) => {
               const isLoading = loadingPlayerId === selection.player.id;
               const showBumpOptions = bumpOptionsPlayerId === selection.player.id;
 
