@@ -51,7 +51,7 @@ export function TeamSelector({
       {isViewingOther && (
         <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
           <Eye className="w-3 h-3 mr-1" />
-          Viewing as Commissioner
+          Viewing
         </Badge>
       )}
 
