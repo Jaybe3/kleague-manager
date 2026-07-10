@@ -113,19 +113,40 @@ GitHub Repository
 
 ### Local Development Setup
 
-Create `.env.local` in project root:
+The Prisma provider is PostgreSQL (Neon), so local dev must point at a
+PostgreSQL database — the old `file:./dev.db` (SQLite) path no longer works
+(`prisma/dev.db` is a stale leftover from before the Postgres migration).
+
+**Recommended: a Neon branch.** In the Neon console → your project →
+Branches → New branch (parent = production, "Branch data and schema",
+auto-delete after N days). This gives an isolated, throwaway copy of real
+production data on the same engine. Copy its connection string.
+
+Create `.env.local` in the project root:
 ```bash
-# Database (SQLite for local dev)
-DATABASE_URL="file:./dev.db"
+# Neon LOCAL-DEV BRANCH connection string (NOT production).
+DATABASE_URL="postgresql://...-pooler.<region>.aws.neon.tech/neondb?sslmode=require"
 
-# Or PostgreSQL (copy from Vercel for prod data access)
-# DATABASE_URL="postgresql://..."
-
-# Auth secret (generate with: openssl rand -base64 32)
+# Auth secret — use the same value as production so sessions behave
+# identically, or generate one with: openssl rand -base64 32
 AUTH_SECRET="your-local-dev-secret"
 ```
 
-**Important:** Never commit `.env.local` to git.
+`npm run dev` automatically loads `.env.local` (Next.js reads it before
+`.env`), so the app runtime hits the branch.
+
+**Gotcha — the Prisma CLI reads `.env`, not `.env.local`.** Running
+`prisma migrate`/`seed`/`studio` directly would hit **production**. Use the
+`*:local` scripts, which force `.env.local`:
+
+```bash
+npm run db:migrate:local   # prisma migrate deploy against the branch
+npm run db:push:local      # prisma db push against the branch
+npm run db:seed:local      # seed the branch
+npm run db:studio:local    # open Prisma Studio on the branch
+```
+
+**Important:** Never commit `.env.local` to git (it is gitignored).
 
 ---
 
