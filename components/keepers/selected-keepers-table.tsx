@@ -31,6 +31,7 @@ interface SelectedKeepersTableProps {
   isFinalized: boolean;
   onRemove: (playerId: string) => Promise<void>;
   onBump: (playerId: string, newRound: number) => Promise<void>;
+  onResetBump: (playerId: string) => Promise<void>;
   getBumpOptions: (playerId: string) => Promise<number[]>;
 }
 
@@ -40,6 +41,7 @@ export function SelectedKeepersTable({
   isFinalized,
   onRemove,
   onBump,
+  onResetBump,
   getBumpOptions,
 }: SelectedKeepersTableProps) {
   const [loadingPlayerId, setLoadingPlayerId] = useState<string | null>(null);
@@ -123,6 +125,17 @@ export function SelectedKeepersTable({
     setLoadingPlayerId(playerId);
     try {
       await onBump(playerId, newRound);
+      setBumpOptionsPlayerId(null);
+      setBumpOptions([]);
+    } finally {
+      setLoadingPlayerId(null);
+    }
+  };
+
+  const handleResetBump = async (playerId: string) => {
+    setLoadingPlayerId(playerId);
+    try {
+      await onResetBump(playerId);
       setBumpOptionsPlayerId(null);
       setBumpOptions([]);
     } finally {
@@ -238,6 +251,18 @@ export function SelectedKeepersTable({
                         >
                           {showBumpOptions ? "Cancel" : "Bump"}
                         </Button>
+                        {selection.isBumped && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResetBump(selection.player.id)}
+                            disabled={isLoading}
+                            className="h-7 px-2 text-xs border-warning/50 text-warning hover:bg-warning/10"
+                            title={`Reset to original Round ${selection.calculatedRound}`}
+                          >
+                            Reset
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"

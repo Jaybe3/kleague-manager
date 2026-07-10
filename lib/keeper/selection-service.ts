@@ -480,6 +480,59 @@ export async function bumpPlayer(
 }
 
 /**
+ * Reset a bumped player back to their original (calculated) keeper round.
+ * This is the inverse of bumpPlayer - it clears any bump so the player
+ * sits in their calculated cost round again.
+ *
+ * Like the initial selection, this does NOT block on conflicts: if another
+ * keeper already occupies the calculated round, the resulting conflict is
+ * surfaced by detectConflicts and blocks finalize (same as a fresh select).
+ */
+export async function resetBump(
+  teamId: string,
+  playerId: string,
+  targetYear: number
+): Promise<BumpPlayerResult> {
+  // Find the selection
+  const selection = await db.keeperSelection.findFirst({
+    where: { teamId, playerId, seasonYear: targetYear },
+  });
+
+  if (!selection) {
+    return { success: false, error: "Selection not found" };
+  }
+
+  if (selection.isFinalized) {
+    return { success: false, error: "Cannot modify finalized selection" };
+  }
+
+  // Get team to find slotId
+  const team = await db.team.findUnique({
+    where: { id: teamId },
+    select: { slotId: true },
+  });
+
+  // Get original keeper cost
+  const keeperResult = team
+    ? await getPlayerKeeperCost(playerId, team.slotId, targetYear)
+    : null;
+  const originalCost = keeperResult?.calculation.keeperRound ?? selection.keeperRound;
+
+  // Already at the original round - nothing to change
+  if (selection.keeperRound === originalCost) {
+    return { success: true, newRound: originalCost };
+  }
+
+  // Restore to the calculated cost
+  await db.keeperSelection.update({
+    where: { id: selection.id },
+    data: { keeperRound: originalCost },
+  });
+
+  return { success: true, newRound: originalCost };
+}
+
+/**
  * Get available bump options for a player (earlier rounds not in use)
  */
 export async function getBumpOptions(

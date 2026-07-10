@@ -169,6 +169,22 @@ function KeepersPageContent() {
     }
   };
 
+  const handleResetBump = async (playerId: string) => {
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/my-team/keepers/bump?playerId=${playerId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to reset bump");
+      }
+      await fetchData();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to reset bump");
+    }
+  };
+
   const getBumpOptions = async (playerId: string): Promise<number[]> => {
     try {
       const res = await fetch(`/api/my-team/keepers/bump?playerId=${playerId}`);
@@ -341,6 +357,7 @@ function KeepersPageContent() {
             isFinalized={isReadOnly}
             onRemove={handleRemovePlayer}
             onBump={handleBumpPlayer}
+            onResetBump={handleResetBump}
             getBumpOptions={getBumpOptions}
           />
         </CardContent>
