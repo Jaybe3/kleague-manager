@@ -6,6 +6,13 @@ import { useSession } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { UserCog } from "lucide-react";
 
 interface UserRow {
@@ -16,26 +23,44 @@ interface UserRow {
   slotIds: number[];
 }
 
+interface SlotOption {
+  slotId: number;
+  teamName: string;
+}
+
+const NO_SLOT = "none";
+
 export function ImpersonationPicker() {
   const router = useRouter();
   const { data: session, update } = useSession();
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [slots, setSlots] = useState<SlotOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   const currentUserId = session?.user?.id;
+
+  const loadUsers = async () => {
+    const res = await fetch("/api/admin/users");
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to load users");
+    }
+    const data = await res.json();
+    setUsers(data.users || []);
+  };
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/admin/users");
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Failed to load users");
+        const slotsRes = await fetch("/api/slots");
+        if (slotsRes.ok) {
+          const slotsData = await slotsRes.json();
+          setSlots(slotsData.slots || []);
         }
-        const data = await res.json();
-        setUsers(data.users || []);
+        await loadUsers();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load users");
       } finally {
@@ -43,6 +68,42 @@ export function ImpersonationPicker() {
       }
     })();
   }, []);
+
+  const handleAssignSlot = async (user: UserRow, value: string) => {
+    setSavingId(user.id);
+    setError(null);
+    try {
+      let slotId: number | null;
+      let managerId: string | null;
+      if (value === NO_SLOT) {
+        // Unassign the user's current slot (if any).
+        if (user.slotIds.length === 0) {
+          setSavingId(null);
+          return;
+        }
+        slotId = user.slotIds[0];
+        managerId = null;
+      } else {
+        slotId = parseInt(value, 10);
+        managerId = user.id;
+      }
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slotId, managerId }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to assign slot");
+      }
+      // Reload so move-semantics (a slot changing hands) is reflected everywhere.
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to assign slot");
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   const handleViewAs = async (targetUserId: string) => {
     setSwitchingId(targetUserId);
@@ -111,29 +172,43 @@ export function ImpersonationPicker() {
                         Commissioner
                       </Badge>
                     )}
-                    {u.slotIds.length > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        Slot {u.slotIds.join(", ")}
-                      </span>
-                    )}
                   </div>
                   <p className="text-sm text-muted-foreground truncate">
                     {u.email}
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={isSelf || switchingId !== null}
-                  onClick={() => handleViewAs(u.id)}
-                >
-                  <UserCog className="w-4 h-4 mr-1" />
-                  {isSelf
-                    ? "You"
-                    : switchingId === u.id
-                      ? "Switching…"
-                      : "View as"}
-                </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Select
+                    value={u.slotIds.length > 0 ? String(u.slotIds[0]) : NO_SLOT}
+                    onValueChange={(value) => handleAssignSlot(u, value)}
+                    disabled={savingId !== null}
+                  >
+                    <SelectTrigger size="sm" className="w-[190px]">
+                      <SelectValue placeholder="No slot" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_SLOT}>No slot</SelectItem>
+                      {slots.map((s) => (
+                        <SelectItem key={s.slotId} value={String(s.slotId)}>
+                          Slot {s.slotId} — {s.teamName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isSelf || switchingId !== null}
+                    onClick={() => handleViewAs(u.id)}
+                  >
+                    <UserCog className="w-4 h-4 mr-1" />
+                    {isSelf
+                      ? "You"
+                      : switchingId === u.id
+                        ? "Switching…"
+                        : "View as"}
+                  </Button>
+                </div>
               </li>
             );
           })}
