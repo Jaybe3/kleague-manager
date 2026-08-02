@@ -132,29 +132,49 @@ export async function setDraftPosition(
 /**
  * Update entire draft order for a season.
  * Expects an array of { slotId, position } entries.
+ *
+ * Uses a two-phase write because DraftOrder has a unique constraint on
+ * (seasonYear, position): reordering existing rows would otherwise collide
+ * mid-transaction (e.g. moving a slot into a position another slot still
+ * holds). Phase 1 parks every affected row at a temporary negative position;
+ * phase 2 assigns the final positions, which are now collision-free.
  */
 export async function updateDraftOrder(
   seasonYear: number,
   entries: Array<{ slotId: number; position: number }>
 ): Promise<DraftOrder[]> {
-  // Use a transaction to ensure all updates succeed or none do
-  return db.$transaction(
-    entries.map((entry) =>
-      db.draftOrder.upsert({
-        where: {
-          slotId_seasonYear: { slotId: entry.slotId, seasonYear },
-        },
-        create: {
-          slotId: entry.slotId,
-          seasonYear,
-          position: entry.position,
-        },
-        update: {
-          position: entry.position,
-        },
-      })
-    )
-  );
+  return db.$transaction(async (tx) => {
+    // Phase 1: park existing rows at temporary negative positions to avoid
+    // colliding with the (seasonYear, position) unique constraint.
+    for (const entry of entries) {
+      await tx.draftOrder.updateMany({
+        where: { slotId: entry.slotId, seasonYear },
+        data: { position: -entry.position },
+      });
+    }
+
+    // Phase 2: set final positions (upsert covers slots with no existing row).
+    const results: DraftOrder[] = [];
+    for (const entry of entries) {
+      results.push(
+        await tx.draftOrder.upsert({
+          where: {
+            slotId_seasonYear: { slotId: entry.slotId, seasonYear },
+          },
+          create: {
+            slotId: entry.slotId,
+            seasonYear,
+            position: entry.position,
+          },
+          update: {
+            position: entry.position,
+          },
+        })
+      );
+    }
+
+    return results;
+  });
 }
 
 /**
