@@ -440,12 +440,13 @@ export default function AllPlayersPage() {
                         <span className="text-muted-foreground">Ineligible</span>
                       )}
                     </div>
-                    <div className="truncate text-[12px] uppercase tracking-wider text-muted-foreground">
-                      {p.ownerTeamName}
-                      <span className="mx-1.5 opacity-40">•</span>
-                      {p.acquisitionType}
-                      <span className="mx-1.5 opacity-40">•</span>
-                      {p.yearsKept} yr{p.yearsKept === 1 ? "" : "s"} kept
+                    <div className="text-[12px] uppercase tracking-wider text-muted-foreground">
+                      <div className="truncate">{p.ownerTeamName}</div>
+                      <div className="whitespace-nowrap">
+                        {p.acquisitionType}
+                        <span className="mx-1.5 opacity-40">•</span>
+                        {p.yearsKept} yr{p.yearsKept === 1 ? "" : "s"} kept
+                      </div>
                     </div>
                   </div>
                 ))}
