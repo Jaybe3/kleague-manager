@@ -275,7 +275,7 @@ export default function AllPlayersPage() {
                   onClick={() => setStatusFilter(value)}
                   className={`flex-shrink-0 h-9 px-4 rounded-full text-sm font-semibold transition-colors ${
                     statusFilter === value
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-primary-container text-on-primary-container"
                       : "bg-muted text-muted-foreground"
                   }`}
                 >

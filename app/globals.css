@@ -34,6 +34,8 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -67,9 +69,12 @@
   --popover: #1f2937;
   --popover-foreground: #f9fafb;
 
-  /* Accent: #10b981 (emerald-500) */
-  --primary: #10b981;
-  --primary-foreground: #111827;
+  /* Accent: Forest mint (design-system primary) */
+  --primary: #4edea3;
+  --primary-foreground: #003824;
+  /* Container = emerald, for filled chips/badges (design-system primary-container) */
+  --primary-container: #10b981;
+  --on-primary-container: #00422b;
 
   /* Surface variants */
   --secondary: #1f2937;
@@ -88,7 +93,7 @@
   /* Border: #374151 (gray-700) */
   --border: #374151;
   --input: #374151;
-  --ring: #10b981;
+  --ring: #4edea3;
 
   /* Semantic colors */
   --success: #22c55e;
@@ -105,12 +110,12 @@
   /* Sidebar - matches main theme */
   --sidebar: #1f2937;
   --sidebar-foreground: #f9fafb;
-  --sidebar-primary: #10b981;
-  --sidebar-primary-foreground: #111827;
+  --sidebar-primary: #4edea3;
+  --sidebar-primary-foreground: #003824;
   --sidebar-accent: #374151;
   --sidebar-accent-foreground: #f9fafb;
   --sidebar-border: #374151;
-  --sidebar-ring: #10b981;
+  --sidebar-ring: #4edea3;
 }
 
 /* Light mode override (if needed in future) */
