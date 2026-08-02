@@ -34,12 +34,12 @@ export function BottomNav() {
     return pathname.startsWith(path);
   };
 
-  // Show 4 items for regular users, 5 for commissioners
+  // Show 5 items for regular users, 6 for commissioners
   const items = isCommissioner ? [...navItems, adminItem] : navItems;
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-      <div className="flex justify-around items-center h-16 px-2">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 pb-[env(safe-area-inset-bottom)]">
+      <div className="flex justify-around items-center h-16 px-1">
         {items.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -53,8 +53,10 @@ export function BottomNav() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Icon className="h-5 w-5" />
-              <span className="text-xs mt-1 font-medium">{item.label}</span>
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="text-[11px] mt-1 font-medium whitespace-nowrap leading-none">
+                {item.label}
+              </span>
             </Link>
           );
         })}

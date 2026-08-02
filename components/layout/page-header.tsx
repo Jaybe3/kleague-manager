@@ -19,7 +19,7 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
           <p className="text-sm text-muted-foreground mt-1">{description}</p>
         )}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 min-w-0">
         {actions}
         <Button
           variant="ghost"

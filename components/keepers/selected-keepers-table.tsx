@@ -247,7 +247,7 @@ export function SelectedKeepersTable({
                           size="sm"
                           onClick={() => handleShowBumpOptions(selection.player.id)}
                           disabled={isLoading}
-                          className="h-7 px-2 text-xs border-primary/50 text-primary hover:bg-primary/10"
+                          className="h-9 md:h-7 px-2 text-xs border-primary/50 text-primary hover:bg-primary/10"
                         >
                           {showBumpOptions ? "Cancel" : "Bump"}
                         </Button>
@@ -257,7 +257,7 @@ export function SelectedKeepersTable({
                             size="sm"
                             onClick={() => handleResetBump(selection.player.id)}
                             disabled={isLoading}
-                            className="h-7 px-2 text-xs border-warning/50 text-warning hover:bg-warning/10"
+                            className="h-9 md:h-7 px-2 text-xs border-warning/50 text-warning hover:bg-warning/10"
                             title={`Reset to original Round ${selection.calculatedRound}`}
                           >
                             Reset
@@ -268,7 +268,7 @@ export function SelectedKeepersTable({
                           size="sm"
                           onClick={() => handleRemove(selection.player.id)}
                           disabled={isLoading}
-                          className="h-7 px-2 text-xs border-error/50 text-error hover:bg-error/10"
+                          className="h-9 md:h-7 px-2 text-xs border-error/50 text-error hover:bg-error/10"
                         >
                           Remove
                         </Button>
@@ -287,7 +287,7 @@ export function SelectedKeepersTable({
                                   size="sm"
                                   onClick={() => handleBump(selection.player.id, round)}
                                   disabled={isLoading}
-                                  className="h-6 px-2 text-xs"
+                                  className="h-8 md:h-6 px-2 text-xs"
                                 >
                                   R{round}
                                 </Button>

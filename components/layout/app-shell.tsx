@@ -19,7 +19,7 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Main content area */}
       <main className="md:pl-64">
-        <div className="p-4 md:p-6 pb-20 md:pb-6">
+        <div className="p-4 md:p-6 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6">
           {children}
         </div>
       </main>

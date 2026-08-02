@@ -248,7 +248,7 @@ export function EligiblePlayersTable({
                           size="sm"
                           onClick={() => handleSelect(item.player.id)}
                           disabled={isLoading || !canSelectMore}
-                          className="h-7 px-3 text-xs border-success/50 text-success hover:bg-success/10"
+                          className="h-9 md:h-7 px-3 text-xs border-success/50 text-success hover:bg-success/10"
                         >
                           {isLoading ? "..." : "Select"}
                         </Button>

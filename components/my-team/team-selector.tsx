@@ -47,7 +47,7 @@ export function TeamSelector({
   };
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3 w-full sm:w-auto">
       {isViewingOther && (
         <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
           <Eye className="w-3 h-3 mr-1" />
@@ -59,7 +59,7 @@ export function TeamSelector({
         value={String(currentSlotId)}
         onValueChange={handleTeamChange}
       >
-        <SelectTrigger className="w-[220px]">
+        <SelectTrigger className="w-full sm:w-[220px]">
           <SelectValue placeholder="Select team">
             {currentTeam?.teamName ?? `Slot ${currentSlotId}`}
           </SelectValue>

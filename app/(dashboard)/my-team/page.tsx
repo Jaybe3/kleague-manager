@@ -139,7 +139,7 @@ export default async function MyTeamPage({ searchParams }: PageProps) {
         title="My Team"
         description="View your roster and keeper eligibility"
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
             <TeamSelector
               teams={allTeams}
               currentSlotId={targetSlotId}

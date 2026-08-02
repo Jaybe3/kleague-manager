@@ -189,7 +189,7 @@ export default function AdminSeasonsPage() {
       {/* Seasons Table */}
       <Card>
         <CardContent className="pt-6">
-          <div className="overflow-hidden rounded-md border border-border">
+          <div className="overflow-x-auto rounded-md border border-border">
             <table className="w-full">
               <thead className="bg-muted/50">
                 <tr>

@@ -160,7 +160,7 @@ export function ImpersonationPicker() {
             return (
               <li
                 key={u.id}
-                className="flex items-center justify-between gap-4 py-3"
+                className="flex flex-col items-stretch gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -177,13 +177,13 @@ export function ImpersonationPicker() {
                     {u.email}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 sm:shrink-0">
                   <Select
                     value={u.slotIds.length > 0 ? String(u.slotIds[0]) : NO_SLOT}
                     onValueChange={(value) => handleAssignSlot(u, value)}
                     disabled={savingId !== null}
                   >
-                    <SelectTrigger size="sm" className="w-[190px]">
+                    <SelectTrigger size="sm" className="flex-1 sm:flex-none sm:w-[190px]">
                       <SelectValue placeholder="No slot" />
                     </SelectTrigger>
                     <SelectContent>

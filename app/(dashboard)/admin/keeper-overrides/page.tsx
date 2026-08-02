@@ -428,7 +428,7 @@ export default function AdminKeeperOverridesPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-md border border-border">
+            <div className="overflow-x-auto rounded-md border border-border">
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>

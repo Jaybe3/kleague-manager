@@ -287,7 +287,7 @@ function KeepersPageContent() {
         title="Keeper Selection"
         description={`${data.team.teamName} - ${data.season.year} Season`}
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
             {isCommissioner && allTeams.length > 0 && (
               <TeamSelector
                 teams={allTeams}

@@ -287,7 +287,7 @@ export default function AdminDraftOrderPage() {
                             size="icon"
                             onClick={() => moveTeam(index, "up")}
                             disabled={index === 0 || saving}
-                            className="h-8 w-8"
+                            className="h-10 w-10 md:h-8 md:w-8"
                             title="Move up"
                           >
                             <svg
@@ -309,7 +309,7 @@ export default function AdminDraftOrderPage() {
                             size="icon"
                             onClick={() => moveTeam(index, "down")}
                             disabled={index === teams.length - 1 || saving}
-                            className="h-8 w-8"
+                            className="h-10 w-10 md:h-8 md:w-8"
                             title="Move down"
                           >
                             <svg

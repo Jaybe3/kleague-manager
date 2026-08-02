@@ -153,7 +153,7 @@ export function TradeBuilder({
   return (
     <div className="space-y-6">
       {/* Trade Date */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <Label htmlFor="trade-date">Trade Date</Label>
@@ -208,14 +208,14 @@ export function TradeBuilder({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between pt-4 border-t">
+      <div className="flex flex-col-reverse gap-3 pt-4 border-t sm:flex-row sm:items-center sm:justify-between">
         <Button variant="outline" onClick={handleReset} disabled={loading}>
           Reset
         </Button>
 
         <div className="flex items-center gap-2">
           {!canPreview && (
-            <span className="text-sm text-muted-foreground">
+            <span className="hidden sm:inline text-sm text-muted-foreground">
               Select teams and add players to both sides
             </span>
           )}
