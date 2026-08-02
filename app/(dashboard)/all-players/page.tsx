@@ -12,8 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, ArrowDown } from "lucide-react";
-import { PositionBadge } from "@/components/players/position-badge";
+import { ArrowUp, ArrowDown, Search } from "lucide-react";
 import { MobileSort } from "@/components/players/mobile-sort";
 
 interface PlayerRow {
@@ -209,7 +208,8 @@ export default function AllPlayersPage() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Desktop: search + three dropdowns */}
+          <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Input
               placeholder="Search player..."
               value={search}
@@ -251,6 +251,66 @@ export default function AllPlayersPage() {
                 <SelectItem value="ineligible">Ineligible to keep</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Mobile: search + status chips + owner/position */}
+          <div className="md:hidden space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder="Search player..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {([
+                ["all", "All"],
+                ["eligible", "Eligible"],
+                ["ineligible", "Ineligible"],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setStatusFilter(value)}
+                  className={`flex-shrink-0 h-9 px-4 rounded-full text-sm font-semibold transition-colors ${
+                    statusFilter === value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Owner" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All owners</SelectItem>
+                  {data?.owners.map((o) => (
+                    <SelectItem key={o.slotId} value={o.slotId.toString()}>
+                      {o.teamName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={positionFilter} onValueChange={setPositionFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Position" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All positions</SelectItem>
+                  {data?.positions.map((pos) => (
+                    <SelectItem key={pos} value={pos}>
+                      {pos}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -338,44 +398,54 @@ export default function AllPlayersPage() {
                   { value: "yearsKept", label: "Years kept" },
                 ]}
               />
-              <div className="md:hidden space-y-2">
+              <div className="md:hidden space-y-3">
                 {filteredPlayers.map((p) => (
                   <div
                     key={`${p.slotId}-${p.playerId}`}
-                    className={`rounded-md border border-border border-l-4 p-3 ${
-                      p.isEligible ? "border-l-success" : "border-l-muted-foreground/30"
+                    className={`rounded-lg border border-border border-l-4 bg-card p-3 shadow-[0_4px_20px_-5px_rgba(16,185,129,0.08)] ${
+                      p.isEligible ? "border-l-success" : "border-l-muted opacity-75"
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2 mb-1">
                       <div className="flex items-center gap-2 min-w-0">
-                        <PositionBadge position={p.position} />
-                        <span className="font-medium text-foreground truncate">
-                          {p.firstName} {p.lastName}
+                        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold leading-none text-muted-foreground">
+                          {p.position}
                         </span>
+                        <h3 className="truncate text-[15px] font-semibold text-foreground">
+                          {p.firstName} {p.lastName}
+                        </h3>
                       </div>
-                      <span className="shrink-0">
-                        {p.keeperRound !== null ? (
-                          <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
-                            R{p.keeperRound}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </span>
-                    </div>
-                    <div
-                      className={`mt-1.5 text-xs font-medium ${
-                        p.isEligible ? "text-success" : "text-muted-foreground"
-                      }`}
-                    >
-                      {p.isEligible ? "Eligible" : "Ineligible"}
-                      {p.isOverride && (
-                        <span className="text-primary"> · override</span>
+                      {p.keeperRound !== null ? (
+                        <span className="shrink-0 rounded bg-success/10 px-2 py-0.5 font-mono text-sm text-success tabular-nums">
+                          R{p.keeperRound}
+                        </span>
+                      ) : (
+                        <span className="shrink-0 rounded bg-muted/30 px-2 py-0.5 font-mono text-sm text-muted-foreground">
+                          —
+                        </span>
                       )}
                     </div>
-                    <div className="mt-0.5 text-xs text-muted-foreground truncate">
-                      {p.ownerTeamName} · {p.acquisitionType} · {p.yearsKept} yr
-                      {p.yearsKept === 1 ? "" : "s"} kept
+                    <div className="mb-2 text-[13px]">
+                      {p.isEligible ? (
+                        <span className="text-success">
+                          Eligible
+                          {p.isOverride && (
+                            <>
+                              <span className="text-muted-foreground"> · </span>
+                              <span className="italic text-primary">override</span>
+                            </>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Ineligible</span>
+                      )}
+                    </div>
+                    <div className="truncate text-[12px] uppercase tracking-wider text-muted-foreground">
+                      {p.ownerTeamName}
+                      <span className="mx-1.5 opacity-40">•</span>
+                      {p.acquisitionType}
+                      <span className="mx-1.5 opacity-40">•</span>
+                      {p.yearsKept} yr{p.yearsKept === 1 ? "" : "s"} kept
                     </div>
                   </div>
                 ))}
