@@ -15,11 +15,13 @@ import {
   Scale,
   Calendar,
   UserCog,
+  List,
 } from "lucide-react";
 
 const navItems = [
   { label: "My Team", path: "/my-team", icon: Users },
   { label: "Keepers", path: "/my-team/keepers", icon: Star },
+  { label: "All Players", path: "/all-players", icon: List },
   { label: "Draft Board", path: "/draft-board", icon: LayoutGrid },
   { label: "Rules", path: "/rules", icon: BookOpen },
 ];

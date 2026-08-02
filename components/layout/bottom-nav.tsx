@@ -9,11 +9,13 @@ import {
   LayoutGrid,
   BookOpen,
   Settings,
+  List,
 } from "lucide-react";
 
 const navItems = [
   { label: "Team", path: "/my-team", icon: Users },
   { label: "Keepers", path: "/my-team/keepers", icon: Star },
+  { label: "Players", path: "/all-players", icon: List },
   { label: "Draft", path: "/draft-board", icon: LayoutGrid },
   { label: "Rules", path: "/rules", icon: BookOpen },
 ];

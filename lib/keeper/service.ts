@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { calculateKeeperCost } from "./calculator";
 import { isRuleActive } from "@/lib/rules/rules-service";
+import { getAllTeamNamesForSeason } from "@/lib/slots";
 import type { KeeperCalculationInput, KeeperCalculationResult, PlayerKeeperInfo, KeeperRuleFlags } from "./types";
 import { DEFAULT_RULE_FLAGS, RULE_CODE_TO_FLAG } from "./types";
 
@@ -814,6 +815,109 @@ export async function getAllTeamsKeeperCosts(
   }
 
   return results;
+}
+
+/**
+ * A single player row for the league-wide "All Players" list.
+ */
+export interface AllPlayersRow {
+  playerId: string;
+  firstName: string;
+  lastName: string;
+  position: string;
+  slotId: number;
+  ownerTeamName: string;
+  acquisitionType: "DRAFT" | "FA";
+  yearsKept: number;
+  keeperRound: number | null;
+  isEligible: boolean;
+  isOverride: boolean;
+}
+
+/**
+ * Get every player on every team's roster for a season, with keeper
+ * eligibility resolved for the target (keeper) year.
+ *
+ * Rosters are read from the prior season's non-dropped acquisitions
+ * (rosterYear = targetYear - 1). Eligibility is computed per slot via the
+ * batched calculator, so trade/FA inheritance, rule flags, and commissioner
+ * overrides are all honored.
+ *
+ * @param rosterYear - The season whose rosters to list (targetYear - 1)
+ * @param targetYear - The keeper year to compute eligibility for
+ */
+export async function getAllPlayersWithKeeperStatus(
+  rosterYear: number,
+  targetYear: number
+): Promise<AllPlayersRow[]> {
+  const teams = await db.team.findMany({
+    where: { seasonYear: rosterYear },
+    orderBy: { slotId: "asc" },
+  });
+
+  const teamNames = await getAllTeamNamesForSeason(rosterYear);
+  const rows: AllPlayersRow[] = [];
+
+  for (const team of teams) {
+    // Players currently on this roster (not dropped)
+    const acquisitions = await db.playerAcquisition.findMany({
+      where: { teamId: team.id, droppedDate: null },
+      include: { player: true },
+      orderBy: { acquisitionDate: "desc" },
+    });
+
+    // Deduplicate to unique players (most recent acquisition wins)
+    const playerMap = new Map<string, (typeof acquisitions)[0]>();
+    for (const acq of acquisitions) {
+      if (!playerMap.has(acq.playerId)) {
+        playerMap.set(acq.playerId, acq);
+      }
+    }
+
+    const playerIds = Array.from(playerMap.keys());
+    const costs = await getPlayerKeeperCostsBatch(playerIds, team.slotId, targetYear);
+    const ownerTeamName = teamNames.get(team.slotId) ?? `Slot ${team.slotId}`;
+
+    for (const [playerId, acq] of playerMap) {
+      const result = costs.get(playerId);
+
+      if (result) {
+        rows.push({
+          playerId,
+          firstName: result.player.firstName,
+          lastName: result.player.lastName,
+          position: result.player.position,
+          slotId: team.slotId,
+          ownerTeamName,
+          acquisitionType: result.acquisition.type,
+          yearsKept: result.calculation.yearsKept,
+          keeperRound: result.calculation.isEligible
+            ? result.calculation.keeperRound
+            : null,
+          isEligible: result.calculation.isEligible,
+          isOverride: result.calculation.isOverride ?? false,
+        });
+      } else {
+        // Couldn't resolve a keeper base (e.g. no valid acquisition chain).
+        // Still list the player so the roster view is complete.
+        rows.push({
+          playerId,
+          firstName: acq.player.firstName,
+          lastName: acq.player.lastName,
+          position: acq.player.position,
+          slotId: team.slotId,
+          ownerTeamName,
+          acquisitionType: acq.acquisitionType === "DRAFT" ? "DRAFT" : "FA",
+          yearsKept: 0,
+          keeperRound: null,
+          isEligible: false,
+          isOverride: false,
+        });
+      }
+    }
+  }
+
+  return rows;
 }
 
 /**
