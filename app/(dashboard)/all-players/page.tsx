@@ -271,7 +271,7 @@ export default function AllPlayersPage() {
               <div className="text-sm text-muted-foreground mb-3">
                 {filteredPlayers.length} player{filteredPlayers.length === 1 ? "" : "s"}
               </div>
-              <div className="overflow-x-auto rounded-md border border-border">
+              <div className="hidden md:block overflow-x-auto rounded-md border border-border">
                 <table className="w-full min-w-[720px]">
                   <thead className="bg-muted/50">
                     <tr>
@@ -319,6 +319,62 @@ export default function AllPlayersPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile: stacked cards */}
+              <div className="md:hidden space-y-3">
+                {filteredPlayers.map((p) => (
+                  <div
+                    key={`${p.slotId}-${p.playerId}`}
+                    className="rounded-md border border-border p-4 space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-medium text-foreground">
+                        {p.firstName} {p.lastName}
+                      </span>
+                      <span className="text-sm text-muted-foreground shrink-0">
+                        {p.position}
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">Owner</span>
+                        <span className="text-foreground text-right">{p.ownerTeamName}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">Acquired</span>
+                        <span className="text-foreground">{p.acquisitionType}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">Years kept</span>
+                        <span className="text-foreground">{p.yearsKept}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">Keeper round</span>
+                        <span className="text-foreground">
+                          {p.keeperRound !== null ? (
+                            <>
+                              Round {p.keeperRound}
+                              {p.isOverride && (
+                                <span className="ml-1 text-xs text-primary">(override)</span>
+                              )}
+                            </>
+                          ) : (
+                            "—"
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-2 items-center pt-1">
+                        <span className="text-muted-foreground">Status</span>
+                        {p.isEligible ? (
+                          <Badge variant="default">Eligible</Badge>
+                        ) : (
+                          <Badge variant="secondary">Ineligible</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </>
           )}

@@ -171,8 +171,8 @@ export function RosterTable({ players, isCommissioner = false }: RosterTableProp
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-md border border-border overflow-hidden">
+      {/* Table (desktop) */}
+      <div className="hidden md:block rounded-md border border-border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
@@ -269,6 +269,76 @@ export function RosterTable({ players, isCommissioner = false }: RosterTableProp
             })}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Cards (mobile) */}
+      <div className="md:hidden space-y-3">
+        {displayedPlayers.map((p) => {
+          const isBestValue =
+            p.calculation.isEligible &&
+            p.calculation.keeperRound !== null &&
+            p.calculation.keeperRound >= bestValueThreshold;
+
+          return (
+            <div
+              key={p.player.id}
+              className="rounded-md border border-border p-4 space-y-2"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-foreground">
+                    {getPlayerName(p)}
+                  </span>
+                  {isBestValue && (
+                    <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10 text-xs">
+                      Best Value
+                    </Badge>
+                  )}
+                </div>
+                <span className="text-sm text-muted-foreground shrink-0">
+                  {p.player.position}
+                </span>
+              </div>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Acquisition</span>
+                  <span className="text-foreground text-right">{getAcquisitionDisplay(p)}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Years kept</span>
+                  <span className="text-foreground">{p.calculation.yearsKept}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Keeper cost</span>
+                  <span className="text-foreground">
+                    {p.calculation.isEligible ? (
+                      <>
+                        Round {p.calculation.keeperRound}
+                        {isCommissioner && p.calculation.isOverride && (
+                          <span className="ml-1" title="Commissioner Override">⚙️</span>
+                        )}
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-2 items-center pt-1">
+                  <span className="text-muted-foreground">Status</span>
+                  {p.calculation.isEligible ? (
+                    <Badge className="bg-success/20 text-success hover:bg-success/30 border-0">
+                      Eligible
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="bg-muted text-muted-foreground border-0">
+                      Ineligible
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {displayedPlayers.length === 0 && (

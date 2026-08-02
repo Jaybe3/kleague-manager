@@ -167,8 +167,8 @@ export function EligiblePlayersTable({
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-md border border-border overflow-hidden">
+      {/* Table (desktop) */}
+      <div className="hidden md:block rounded-md border border-border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
@@ -260,6 +260,60 @@ export function EligiblePlayersTable({
             })}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Cards (mobile) */}
+      <div className="md:hidden space-y-3">
+        {displayedPlayers.map((item) => {
+          const isLoading = loadingPlayerId === item.player.id;
+          const isBestValue =
+            !item.isSelected && item.keeperCost >= bestValueThreshold;
+
+          return (
+            <div
+              key={item.player.id}
+              className={`rounded-md border border-border p-4 space-y-2 ${
+                item.isSelected ? "bg-success/5 opacity-60" : ""
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-foreground">
+                    {item.player.firstName} {item.player.lastName}
+                  </span>
+                  {isBestValue && (
+                    <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10 text-xs">
+                      Best Value
+                    </Badge>
+                  )}
+                  {item.isSelected && (
+                    <Badge className="bg-success/20 text-success hover:bg-success/30 border-0 text-xs">
+                      Selected
+                    </Badge>
+                  )}
+                </div>
+                <span className="text-sm text-muted-foreground shrink-0">
+                  {item.player.position}
+                </span>
+              </div>
+              <div className="flex justify-between gap-2 text-sm">
+                <span className="text-muted-foreground">Keeper cost</span>
+                <span className="font-semibold text-foreground">Round {item.keeperCost}</span>
+              </div>
+              {!isFinalized && !item.isSelected && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSelect(item.player.id)}
+                  disabled={isLoading || !canSelectMore}
+                  className="w-full h-10 text-sm border-success/50 text-success hover:bg-success/10"
+                >
+                  {isLoading ? "..." : "Select"}
+                </Button>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {unselectedPlayers.length === 0 && (

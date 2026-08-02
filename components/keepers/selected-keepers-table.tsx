@@ -156,7 +156,7 @@ export function SelectedKeepersTable({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-md border border-border overflow-hidden">
+      <div className="hidden md:block rounded-md border border-border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
@@ -308,6 +308,124 @@ export function SelectedKeepersTable({
           </TableBody>
         </Table>
       </div>
+
+      {/* Cards (mobile) */}
+      <div className="md:hidden space-y-3">
+        {sortedSelections.map((selection) => {
+          const isLoading = loadingPlayerId === selection.player.id;
+          const showBumpOptions = bumpOptionsPlayerId === selection.player.id;
+
+          return (
+            <div
+              key={selection.id}
+              className={`rounded-md border border-border p-4 space-y-2 ${
+                selection.isBumped ? "bg-warning/5" : ""
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-foreground">
+                    {selection.player.firstName} {selection.player.lastName}
+                  </span>
+                  {selection.isBumped && (
+                    <Badge variant="outline" className="border-warning/50 text-warning bg-warning/10 text-xs">
+                      Bumped
+                    </Badge>
+                  )}
+                  {selection.isFinalized && (
+                    <Badge className="bg-success/20 text-success hover:bg-success/30 border-0 text-xs">
+                      Finalized
+                    </Badge>
+                  )}
+                </div>
+                <span className="text-sm text-muted-foreground shrink-0">
+                  {selection.player.position}
+                </span>
+              </div>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Calculated cost</span>
+                  <span className="text-foreground">Round {selection.calculatedRound}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Final round</span>
+                  <span
+                    className={`font-semibold ${
+                      selection.isBumped ? "text-warning" : "text-foreground"
+                    }`}
+                  >
+                    Round {selection.finalRound}
+                  </span>
+                </div>
+              </div>
+              {!isFinalized && (
+                <div className="pt-1">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleShowBumpOptions(selection.player.id)}
+                      disabled={isLoading}
+                      className="h-9 px-3 text-xs border-primary/50 text-primary hover:bg-primary/10"
+                    >
+                      {showBumpOptions ? "Cancel" : "Bump"}
+                    </Button>
+                    {selection.isBumped && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleResetBump(selection.player.id)}
+                        disabled={isLoading}
+                        className="h-9 px-3 text-xs border-warning/50 text-warning hover:bg-warning/10"
+                        title={`Reset to original Round ${selection.calculatedRound}`}
+                      >
+                        Reset
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRemove(selection.player.id)}
+                      disabled={isLoading}
+                      className="h-9 px-3 text-xs border-error/50 text-error hover:bg-error/10"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                  {showBumpOptions && (
+                    <div className="mt-2 p-2 bg-muted/50 rounded-md">
+                      {bumpOptions.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          <span className="text-xs text-muted-foreground w-full mb-1">
+                            Bump to round:
+                          </span>
+                          {bumpOptions.map((round) => (
+                            <Button
+                              key={round}
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleBump(selection.player.id, round)}
+                              disabled={isLoading}
+                              className="h-8 px-3 text-xs"
+                            >
+                              R{round}
+                            </Button>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          No earlier rounds available
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
       <div className="text-sm text-muted-foreground">
         {selections.length} keeper{selections.length !== 1 ? "s" : ""} selected
       </div>
