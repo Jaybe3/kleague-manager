@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowUp, ArrowDown } from "lucide-react";
+import { PositionBadge } from "@/components/players/position-badge";
+import { MobileSort } from "@/components/players/mobile-sort";
 
 interface PlayerRow {
   playerId: string;
@@ -321,57 +323,59 @@ export default function AllPlayersPage() {
                 </table>
               </div>
 
-              {/* Mobile: stacked cards */}
-              <div className="md:hidden space-y-3">
+              {/* Mobile: sort control + stacked cards */}
+              <MobileSort
+                value={sortKey}
+                direction={sortDir}
+                onFieldChange={(v) => setSortKey(v as SortKey)}
+                onToggleDirection={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                options={[
+                  { value: "keeperRound", label: "Keeper round" },
+                  { value: "name", label: "Name" },
+                  { value: "position", label: "Position" },
+                  { value: "owner", label: "Owner" },
+                  { value: "status", label: "Status" },
+                  { value: "yearsKept", label: "Years kept" },
+                ]}
+              />
+              <div className="md:hidden space-y-2">
                 {filteredPlayers.map((p) => (
                   <div
                     key={`${p.slotId}-${p.playerId}`}
-                    className="rounded-md border border-border p-4 space-y-2"
+                    className={`rounded-md border border-border border-l-4 p-3 ${
+                      p.isEligible ? "border-l-success" : "border-l-muted-foreground/30"
+                    }`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="font-medium text-foreground">
-                        {p.firstName} {p.lastName}
-                      </span>
-                      <span className="text-sm text-muted-foreground shrink-0">
-                        {p.position}
-                      </span>
-                    </div>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Owner</span>
-                        <span className="text-foreground text-right">{p.ownerTeamName}</span>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Acquired</span>
-                        <span className="text-foreground">{p.acquisitionType}</span>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Years kept</span>
-                        <span className="text-foreground">{p.yearsKept}</span>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Keeper round</span>
-                        <span className="text-foreground">
-                          {p.keeperRound !== null ? (
-                            <>
-                              Round {p.keeperRound}
-                              {p.isOverride && (
-                                <span className="ml-1 text-xs text-primary">(override)</span>
-                              )}
-                            </>
-                          ) : (
-                            "—"
-                          )}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <PositionBadge position={p.position} />
+                        <span className="font-medium text-foreground truncate">
+                          {p.firstName} {p.lastName}
                         </span>
                       </div>
-                      <div className="flex justify-between gap-2 items-center pt-1">
-                        <span className="text-muted-foreground">Status</span>
-                        {p.isEligible ? (
-                          <Badge variant="default">Eligible</Badge>
+                      <span className="shrink-0">
+                        {p.keeperRound !== null ? (
+                          <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
+                            R{p.keeperRound}
+                          </span>
                         ) : (
-                          <Badge variant="secondary">Ineligible</Badge>
+                          <span className="text-muted-foreground">—</span>
                         )}
-                      </div>
+                      </span>
+                    </div>
+                    <div
+                      className={`mt-1.5 text-xs font-medium ${
+                        p.isEligible ? "text-success" : "text-muted-foreground"
+                      }`}
+                    >
+                      {p.isEligible ? "Eligible" : "Ineligible"}
+                      {p.isOverride && (
+                        <span className="text-primary"> · override</span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground truncate">
+                      {p.ownerTeamName} · {p.acquisitionType} · {p.yearsKept} yr
+                      {p.yearsKept === 1 ? "" : "s"} kept
                     </div>
                   </div>
                 ))}

@@ -18,6 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PositionBadge } from "@/components/players/position-badge";
+import { MobileSort } from "@/components/players/mobile-sort";
 
 type SortField = "name" | "position" | "keeperCost" | "status";
 type SortDirection = "asc" | "desc";
@@ -272,7 +274,21 @@ export function RosterTable({ players, isCommissioner = false }: RosterTableProp
       </div>
 
       {/* Cards (mobile) */}
-      <div className="md:hidden space-y-3">
+      <MobileSort
+        value={sortField}
+        direction={sortDirection}
+        onFieldChange={(v) => setSortField(v as SortField)}
+        onToggleDirection={() =>
+          setSortDirection((d) => (d === "asc" ? "desc" : "asc"))
+        }
+        options={[
+          { value: "keeperCost", label: "Keeper cost" },
+          { value: "name", label: "Name" },
+          { value: "position", label: "Position" },
+          { value: "status", label: "Status" },
+        ]}
+      />
+      <div className="md:hidden space-y-2">
         {displayedPlayers.map((p) => {
           const isBestValue =
             p.calculation.isEligible &&
@@ -282,59 +298,41 @@ export function RosterTable({ players, isCommissioner = false }: RosterTableProp
           return (
             <div
               key={p.player.id}
-              className="rounded-md border border-border p-4 space-y-2"
+              className={`rounded-md border border-border border-l-4 p-3 ${
+                p.calculation.isEligible ? "border-l-success" : "border-l-muted-foreground/30"
+              }`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <PositionBadge position={p.player.position} />
+                  <span className="font-medium text-foreground truncate">
                     {getPlayerName(p)}
                   </span>
-                  {isBestValue && (
-                    <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10 text-xs">
-                      Best Value
-                    </Badge>
-                  )}
                 </div>
-                <span className="text-sm text-muted-foreground shrink-0">
-                  {p.player.position}
+                <span className="shrink-0">
+                  {p.calculation.isEligible ? (
+                    <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
+                      R{p.calculation.keeperRound}
+                      {isCommissioner && p.calculation.isOverride && (
+                        <span className="ml-1" title="Commissioner Override">⚙️</span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
                 </span>
               </div>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">Acquisition</span>
-                  <span className="text-foreground text-right">{getAcquisitionDisplay(p)}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">Years kept</span>
-                  <span className="text-foreground">{p.calculation.yearsKept}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">Keeper cost</span>
-                  <span className="text-foreground">
-                    {p.calculation.isEligible ? (
-                      <>
-                        Round {p.calculation.keeperRound}
-                        {isCommissioner && p.calculation.isOverride && (
-                          <span className="ml-1" title="Commissioner Override">⚙️</span>
-                        )}
-                      </>
-                    ) : (
-                      "—"
-                    )}
-                  </span>
-                </div>
-                <div className="flex justify-between gap-2 items-center pt-1">
-                  <span className="text-muted-foreground">Status</span>
-                  {p.calculation.isEligible ? (
-                    <Badge className="bg-success/20 text-success hover:bg-success/30 border-0">
-                      Eligible
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="bg-muted text-muted-foreground border-0">
-                      Ineligible
-                    </Badge>
-                  )}
-                </div>
+              <div
+                className={`mt-1.5 text-xs font-medium ${
+                  p.calculation.isEligible ? "text-success" : "text-muted-foreground"
+                }`}
+              >
+                {p.calculation.isEligible ? "Eligible" : "Ineligible"}
+                {isBestValue && <span className="text-primary"> · best value</span>}
+              </div>
+              <div className="mt-0.5 text-xs text-muted-foreground truncate">
+                {getAcquisitionDisplay(p)} · {p.calculation.yearsKept} yr
+                {p.calculation.yearsKept === 1 ? "" : "s"} kept
               </div>
             </div>
           );

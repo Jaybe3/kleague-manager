@@ -19,6 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PositionBadge } from "@/components/players/position-badge";
+import { MobileSort } from "@/components/players/mobile-sort";
 
 type SortField = "name" | "position" | "keeperCost";
 type SortDirection = "asc" | "desc";
@@ -263,7 +265,20 @@ export function EligiblePlayersTable({
       </div>
 
       {/* Cards (mobile) */}
-      <div className="md:hidden space-y-3">
+      <MobileSort
+        value={sortField}
+        direction={sortDirection}
+        onFieldChange={(v) => setSortField(v as SortField)}
+        onToggleDirection={() =>
+          setSortDirection((d) => (d === "asc" ? "desc" : "asc"))
+        }
+        options={[
+          { value: "keeperCost", label: "Keeper cost" },
+          { value: "name", label: "Name" },
+          { value: "position", label: "Position" },
+        ]}
+      />
+      <div className="md:hidden space-y-2">
         {displayedPlayers.map((item) => {
           const isLoading = loadingPlayerId === item.player.id;
           const isBestValue =
@@ -272,41 +287,37 @@ export function EligiblePlayersTable({
           return (
             <div
               key={item.player.id}
-              className={`rounded-md border border-border p-4 space-y-2 ${
-                item.isSelected ? "bg-success/5 opacity-60" : ""
+              className={`rounded-md border border-border border-l-4 border-l-success p-3 ${
+                item.isSelected ? "opacity-60" : ""
               }`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <PositionBadge position={item.player.position} />
+                  <span className="font-medium text-foreground truncate">
                     {item.player.firstName} {item.player.lastName}
                   </span>
-                  {isBestValue && (
-                    <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10 text-xs">
-                      Best Value
-                    </Badge>
-                  )}
-                  {item.isSelected && (
-                    <Badge className="bg-success/20 text-success hover:bg-success/30 border-0 text-xs">
-                      Selected
-                    </Badge>
-                  )}
                 </div>
-                <span className="text-sm text-muted-foreground shrink-0">
-                  {item.player.position}
+                <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary shrink-0">
+                  R{item.keeperCost}
                 </span>
               </div>
-              <div className="flex justify-between gap-2 text-sm">
-                <span className="text-muted-foreground">Keeper cost</span>
-                <span className="font-semibold text-foreground">Round {item.keeperCost}</span>
-              </div>
+              {(isBestValue || item.isSelected) && (
+                <div className="mt-1.5 text-xs font-medium">
+                  {item.isSelected ? (
+                    <span className="text-success">Selected</span>
+                  ) : (
+                    <span className="text-primary">Best value</span>
+                  )}
+                </div>
+              )}
               {!isFinalized && !item.isSelected && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleSelect(item.player.id)}
                   disabled={isLoading || !canSelectMore}
-                  className="w-full h-10 text-sm border-success/50 text-success hover:bg-success/10"
+                  className="mt-2 w-full h-10 text-sm border-success/50 text-success hover:bg-success/10"
                 >
                   {isLoading ? "..." : "Select"}
                 </Button>

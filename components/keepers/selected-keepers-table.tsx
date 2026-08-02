@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PositionBadge } from "@/components/players/position-badge";
+import { MobileSort } from "@/components/players/mobile-sort";
 
 type SortField = "name" | "position" | "calculatedRound" | "finalRound";
 type SortDirection = "asc" | "desc";
@@ -310,7 +312,21 @@ export function SelectedKeepersTable({
       </div>
 
       {/* Cards (mobile) */}
-      <div className="md:hidden space-y-3">
+      <MobileSort
+        value={sortField}
+        direction={sortDirection}
+        onFieldChange={(v) => setSortField(v as SortField)}
+        onToggleDirection={() =>
+          setSortDirection((d) => (d === "asc" ? "desc" : "asc"))
+        }
+        options={[
+          { value: "finalRound", label: "Final round" },
+          { value: "calculatedRound", label: "Calculated cost" },
+          { value: "name", label: "Name" },
+          { value: "position", label: "Position" },
+        ]}
+      />
+      <div className="md:hidden space-y-2">
         {sortedSelections.map((selection) => {
           const isLoading = loadingPlayerId === selection.player.id;
           const showBumpOptions = bumpOptionsPlayerId === selection.player.id;
@@ -318,45 +334,37 @@ export function SelectedKeepersTable({
           return (
             <div
               key={selection.id}
-              className={`rounded-md border border-border p-4 space-y-2 ${
-                selection.isBumped ? "bg-warning/5" : ""
+              className={`rounded-md border border-border border-l-4 p-3 ${
+                selection.isBumped ? "border-l-warning" : "border-l-primary"
               }`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <PositionBadge position={selection.player.position} />
+                  <span className="font-medium text-foreground truncate">
                     {selection.player.firstName} {selection.player.lastName}
                   </span>
-                  {selection.isBumped && (
-                    <Badge variant="outline" className="border-warning/50 text-warning bg-warning/10 text-xs">
-                      Bumped
-                    </Badge>
-                  )}
                   {selection.isFinalized && (
-                    <Badge className="bg-success/20 text-success hover:bg-success/30 border-0 text-xs">
+                    <Badge className="bg-success/20 text-success hover:bg-success/30 border-0 text-xs shrink-0">
                       Finalized
                     </Badge>
                   )}
                 </div>
-                <span className="text-sm text-muted-foreground shrink-0">
-                  {selection.player.position}
+                <span
+                  className={`inline-flex items-center rounded-md px-2 py-0.5 text-sm font-semibold shrink-0 ${
+                    selection.isBumped
+                      ? "bg-warning/10 text-warning"
+                      : "bg-primary/10 text-primary"
+                  }`}
+                >
+                  R{selection.finalRound}
                 </span>
               </div>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">Calculated cost</span>
-                  <span className="text-foreground">Round {selection.calculatedRound}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">Final round</span>
-                  <span
-                    className={`font-semibold ${
-                      selection.isBumped ? "text-warning" : "text-foreground"
-                    }`}
-                  >
-                    Round {selection.finalRound}
-                  </span>
-                </div>
+              <div className="mt-1.5 text-xs text-muted-foreground">
+                Calculated R{selection.calculatedRound}
+                {selection.isBumped && (
+                  <span className="text-warning"> · bumped</span>
+                )}
               </div>
               {!isFinalized && (
                 <div className="pt-1">
