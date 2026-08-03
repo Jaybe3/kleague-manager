@@ -18,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PositionBadge } from "@/components/players/position-badge";
 import { MobileSort } from "@/components/players/mobile-sort";
 
 type SortField = "name" | "position" | "keeperCost" | "status";
@@ -135,6 +134,19 @@ export function RosterTable({ players, isCommissioner = false }: RosterTableProp
       .map((p) => p.calculation.keeperRound as number)
       .sort((a, b) => b - a); // Higher round = better value
     return eligibleCosts[Math.min(2, eligibleCosts.length - 1)] ?? 99;
+  }, [players]);
+
+  // Roster health summary (overall, not filtered)
+  const rosterHealth = useMemo(() => {
+    const total = players.length;
+    const eligible = players.filter((p) => p.calculation.isEligible);
+    const rounds = eligible
+      .map((p) => p.calculation.keeperRound)
+      .filter((r): r is number => r !== null);
+    const avg = rounds.length
+      ? rounds.reduce((a, b) => a + b, 0) / rounds.length
+      : 0;
+    return { total, eligibleCount: eligible.length, avg };
   }, [players]);
 
   return (
@@ -288,7 +300,7 @@ export function RosterTable({ players, isCommissioner = false }: RosterTableProp
           { value: "status", label: "Status" },
         ]}
       />
-      <div className="md:hidden space-y-2">
+      <div className="md:hidden space-y-3">
         {displayedPlayers.map((p) => {
           const isBestValue =
             p.calculation.isEligible &&
@@ -298,46 +310,81 @@ export function RosterTable({ players, isCommissioner = false }: RosterTableProp
           return (
             <div
               key={p.player.id}
-              className={`rounded-md border border-border border-l-4 p-3 ${
-                p.calculation.isEligible ? "border-l-success" : "border-l-muted-foreground/30"
+              className={`rounded-lg border border-border border-l-4 bg-card p-3 ${
+                p.calculation.isEligible ? "border-l-success" : "border-l-muted opacity-75"
               }`}
             >
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2 min-w-0">
-                  <PositionBadge position={p.player.position} />
-                  <span className="font-medium text-foreground truncate">
-                    {getPlayerName(p)}
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold leading-none text-muted-foreground">
+                    {p.player.position}
                   </span>
+                  <h3 className="truncate text-[15px] font-semibold text-foreground">
+                    {getPlayerName(p)}
+                  </h3>
                 </div>
-                <span className="shrink-0">
-                  {p.calculation.isEligible ? (
-                    <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
-                      R{p.calculation.keeperRound}
-                      {isCommissioner && p.calculation.isOverride && (
-                        <span className="ml-1" title="Commissioner Override">⚙️</span>
-                      )}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </span>
+                {p.calculation.isEligible ? (
+                  <span className="shrink-0 rounded bg-success/10 px-2 py-0.5 font-mono text-sm text-success tabular-nums">
+                    R{p.calculation.keeperRound}
+                    {isCommissioner && p.calculation.isOverride && (
+                      <span className="ml-1" title="Commissioner Override">⚙️</span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="shrink-0 rounded bg-muted/30 px-2 py-0.5 font-mono text-sm text-muted-foreground">
+                    —
+                  </span>
+                )}
               </div>
-              <div
-                className={`mt-1.5 text-xs font-medium ${
-                  p.calculation.isEligible ? "text-success" : "text-muted-foreground"
-                }`}
-              >
-                {p.calculation.isEligible ? "Eligible" : "Ineligible"}
-                {isBestValue && <span className="text-primary"> · best value</span>}
+              <div className="mb-2 text-[13px]">
+                {p.calculation.isEligible ? (
+                  <span className="text-success">
+                    Eligible
+                    {isBestValue && (
+                      <span className="italic text-primary"> · best value</span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Ineligible</span>
+                )}
               </div>
-              <div className="mt-0.5 text-xs text-muted-foreground truncate">
-                {getAcquisitionDisplay(p)} · {p.calculation.yearsKept} yr
+              <div className="text-[12px] uppercase tracking-wider text-muted-foreground">
+                {p.acquisition.type}
+                <span className="mx-1.5 opacity-40">•</span>
+                {p.calculation.yearsKept} yr
                 {p.calculation.yearsKept === 1 ? "" : "s"} kept
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Roster health (mobile) */}
+      {players.length > 0 && (
+        <div className="md:hidden mt-8 pt-6 border-t border-border">
+          <h4 className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Roster Health
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Eligible Slots
+              </div>
+              <div className="font-mono text-lg text-foreground tabular-nums">
+                {rosterHealth.eligibleCount} / {rosterHealth.total}
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Avg Keep Cost
+              </div>
+              <div className="font-mono text-lg text-foreground tabular-nums">
+                Rd {rosterHealth.avg.toFixed(1)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {displayedPlayers.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">

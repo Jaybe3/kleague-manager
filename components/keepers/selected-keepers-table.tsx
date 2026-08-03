@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PositionBadge } from "@/components/players/position-badge";
+import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { MobileSort } from "@/components/players/mobile-sort";
 
 type SortField = "name" | "position" | "calculatedRound" | "finalRound";
@@ -326,7 +326,7 @@ export function SelectedKeepersTable({
           { value: "position", label: "Position" },
         ]}
       />
-      <div className="md:hidden space-y-2">
+      <div className="md:hidden space-y-3">
         {sortedSelections.map((selection) => {
           const isLoading = loadingPlayerId === selection.player.id;
           const showBumpOptions = bumpOptionsPlayerId === selection.player.id;
@@ -334,98 +334,103 @@ export function SelectedKeepersTable({
           return (
             <div
               key={selection.id}
-              className={`rounded-md border border-border border-l-4 p-3 ${
-                selection.isBumped ? "border-l-warning" : "border-l-primary"
+              className={`rounded-lg border border-border border-l-4 bg-card p-4 ${
+                selection.isBumped ? "border-l-warning" : "border-l-success"
               }`}
             >
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2 min-w-0">
-                  <PositionBadge position={selection.player.position} />
-                  <span className="font-medium text-foreground truncate">
-                    {selection.player.firstName} {selection.player.lastName}
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none text-muted-foreground">
+                    {selection.player.position}
                   </span>
-                  {selection.isFinalized && (
-                    <Badge className="bg-success/20 text-success hover:bg-success/30 border-0 text-xs shrink-0">
-                      Finalized
-                    </Badge>
-                  )}
+                  <h3 className="truncate text-[15px] font-semibold text-foreground">
+                    {selection.player.firstName} {selection.player.lastName}
+                  </h3>
                 </div>
-                <span
-                  className={`inline-flex items-center rounded-md px-2 py-0.5 text-sm font-semibold shrink-0 ${
-                    selection.isBumped
-                      ? "bg-warning/10 text-warning"
-                      : "bg-primary/10 text-primary"
-                  }`}
-                >
+                <span className="shrink-0 font-mono text-sm text-primary tabular-nums">
                   R{selection.finalRound}
                 </span>
               </div>
-              <div className="mt-1.5 text-xs text-muted-foreground">
-                Calculated R{selection.calculatedRound}
-                {selection.isBumped && (
-                  <span className="text-warning"> · bumped</span>
+              <div
+                className={`mb-3 flex items-center gap-2 text-[13px] ${
+                  selection.isBumped ? "text-warning" : "text-primary"
+                }`}
+              >
+                {selection.isBumped ? (
+                  <>
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>Bumped · Round cost increased</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>
+                      {selection.isFinalized
+                        ? "Selected · Finalized"
+                        : "Selected · Standard keeper"}
+                    </span>
+                  </>
                 )}
               </div>
-              {!isFinalized && (
-                <div className="pt-1">
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
+              <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-3">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Calculated R{selection.calculatedRound}
+                </span>
+                {!isFinalized && (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
                       onClick={() => handleShowBumpOptions(selection.player.id)}
                       disabled={isLoading}
-                      className="h-9 px-3 text-xs border-primary/50 text-primary hover:bg-primary/10"
+                      className="rounded-md border border-border bg-muted/30 px-3 py-1 text-[11px] font-bold text-foreground active:scale-95 disabled:opacity-50"
                     >
-                      {showBumpOptions ? "Cancel" : "Bump"}
-                    </Button>
+                      {showBumpOptions ? "CANCEL" : "BUMP"}
+                    </button>
                     {selection.isBumped && (
-                      <Button
-                        variant="outline"
-                        size="sm"
+                      <button
+                        type="button"
                         onClick={() => handleResetBump(selection.player.id)}
                         disabled={isLoading}
-                        className="h-9 px-3 text-xs border-warning/50 text-warning hover:bg-warning/10"
                         title={`Reset to original Round ${selection.calculatedRound}`}
+                        className="rounded-md bg-warning/10 px-3 py-1 text-[11px] font-bold text-warning active:scale-95 disabled:opacity-50"
                       >
-                        Reset
-                      </Button>
+                        RESET
+                      </button>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
+                    <button
+                      type="button"
                       onClick={() => handleRemove(selection.player.id)}
                       disabled={isLoading}
-                      className="h-9 px-3 text-xs border-error/50 text-error hover:bg-error/10"
+                      className="rounded-md bg-error/10 px-3 py-1 text-[11px] font-bold text-error active:scale-95 disabled:opacity-50"
                     >
-                      Remove
-                    </Button>
+                      REMOVE
+                    </button>
                   </div>
-                  {showBumpOptions && (
-                    <div className="mt-2 p-2 bg-muted/50 rounded-md">
-                      {bumpOptions.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          <span className="text-xs text-muted-foreground w-full mb-1">
-                            Bump to round:
-                          </span>
-                          {bumpOptions.map((round) => (
-                            <Button
-                              key={round}
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleBump(selection.player.id, round)}
-                              disabled={isLoading}
-                              className="h-8 px-3 text-xs"
-                            >
-                              R{round}
-                            </Button>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          No earlier rounds available
-                        </span>
-                      )}
+                )}
+              </div>
+              {showBumpOptions && !isFinalized && (
+                <div className="mt-2 rounded-md bg-muted/50 p-2">
+                  {bumpOptions.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      <span className="mb-1 w-full text-xs text-muted-foreground">
+                        Bump to round:
+                      </span>
+                      {bumpOptions.map((round) => (
+                        <button
+                          key={round}
+                          type="button"
+                          onClick={() => handleBump(selection.player.id, round)}
+                          disabled={isLoading}
+                          className="rounded-md border border-border px-3 py-1 text-xs text-foreground active:scale-95 disabled:opacity-50"
+                        >
+                          R{round}
+                        </button>
+                      ))}
                     </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      No earlier rounds available
+                    </span>
                   )}
                 </div>
               )}

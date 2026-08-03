@@ -19,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PositionBadge } from "@/components/players/position-badge";
 import { MobileSort } from "@/components/players/mobile-sort";
 
 type SortField = "name" | "position" | "keeperCost";
@@ -145,8 +144,8 @@ export function EligiblePlayersTable({
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4">
+      {/* Filters (desktop) */}
+      <div className="hidden md:flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <label className="text-sm text-muted-foreground">Position:</label>
           <Select value={positionFilter} onValueChange={setPositionFilter}>
@@ -167,6 +166,24 @@ export function EligiblePlayersTable({
         <div className="text-sm text-muted-foreground ml-auto">
           {unselectedPlayers.length} available
         </div>
+      </div>
+
+      {/* Position chips (mobile) */}
+      <div className="md:hidden flex gap-2 overflow-x-auto pb-1">
+        {["all", ...positions].map((pos) => (
+          <button
+            key={pos}
+            type="button"
+            onClick={() => setPositionFilter(pos)}
+            className={`flex-shrink-0 h-9 px-5 rounded-full text-sm font-semibold transition-colors ${
+              positionFilter === pos
+                ? "bg-muted text-foreground"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {pos === "all" ? "All" : pos}
+          </button>
+        ))}
       </div>
 
       {/* Table (desktop) */}
@@ -278,7 +295,7 @@ export function EligiblePlayersTable({
           { value: "position", label: "Position" },
         ]}
       />
-      <div className="md:hidden space-y-2">
+      <div className="md:hidden space-y-3">
         {displayedPlayers.map((item) => {
           const isLoading = loadingPlayerId === item.player.id;
           const isBestValue =
@@ -287,41 +304,51 @@ export function EligiblePlayersTable({
           return (
             <div
               key={item.player.id}
-              className={`rounded-md border border-border border-l-4 border-l-success p-3 ${
+              className={`rounded-lg border border-border border-l-4 border-l-primary bg-card p-4 ${
                 item.isSelected ? "opacity-60" : ""
               }`}
             >
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2 min-w-0">
-                  <PositionBadge position={item.player.position} />
-                  <span className="font-medium text-foreground truncate">
-                    {item.player.firstName} {item.player.lastName}
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none text-muted-foreground">
+                    {item.player.position}
                   </span>
+                  <h3 className="truncate text-[15px] font-semibold text-foreground">
+                    {item.player.firstName} {item.player.lastName}
+                  </h3>
                 </div>
-                <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary shrink-0">
+                <span className="shrink-0 font-mono text-sm text-primary tabular-nums">
                   R{item.keeperCost}
                 </span>
               </div>
-              {(isBestValue || item.isSelected) && (
-                <div className="mt-1.5 text-xs font-medium">
-                  {item.isSelected ? (
-                    <span className="text-success">Selected</span>
-                  ) : (
-                    <span className="text-primary">Best value</span>
-                  )}
-                </div>
-              )}
-              {!isFinalized && !item.isSelected && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSelect(item.player.id)}
-                  disabled={isLoading || !canSelectMore}
-                  className="mt-2 w-full h-10 text-sm border-success/50 text-success hover:bg-success/10"
-                >
-                  {isLoading ? "..." : "Select"}
-                </Button>
-              )}
+              <div className="mb-3 text-[13px]">
+                <span className="text-primary">Eligible</span>
+                {isBestValue && (
+                  <>
+                    <span className="mx-1 text-muted-foreground">·</span>
+                    <span className="italic text-primary">best value</span>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-3">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {item.isSelected ? "In your keepers" : "Available"}
+                </span>
+                {item.isSelected ? (
+                  <span className="text-[11px] font-bold uppercase text-success">
+                    Selected
+                  </span>
+                ) : !isFinalized ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(item.player.id)}
+                    disabled={isLoading || !canSelectMore}
+                    className="rounded-md bg-primary px-4 py-1.5 text-[11px] font-bold text-primary-foreground shadow-sm shadow-primary/20 active:scale-95 disabled:opacity-50"
+                  >
+                    {isLoading ? "..." : "SELECT"}
+                  </button>
+                ) : null}
+              </div>
             </div>
           );
         })}

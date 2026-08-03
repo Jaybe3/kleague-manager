@@ -416,11 +416,11 @@ export default function AllPlayersPage() {
                         </h3>
                       </div>
                       {p.keeperRound !== null ? (
-                        <span className="shrink-0 rounded bg-success/10 px-2 py-0.5 font-mono text-sm text-success tabular-nums">
+                        <span className="shrink-0 rounded bg-primary-container px-2 py-0.5 font-mono text-sm text-on-primary-container tabular-nums">
                           R{p.keeperRound}
                         </span>
                       ) : (
-                        <span className="shrink-0 rounded bg-muted/30 px-2 py-0.5 font-mono text-sm text-muted-foreground">
+                        <span className="shrink-0 rounded bg-muted px-2 py-0.5 font-mono text-sm text-muted-foreground">
                           —
                         </span>
                       )}
