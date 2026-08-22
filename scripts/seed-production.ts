@@ -21,7 +21,7 @@ async function main() {
     create: {
       year: 2024,
       draftDate: new Date('2024-09-01T18:00:00Z'),
-      keeperDeadline: new Date('2024-08-25T23:59:59Z'),
+      keeperDeadline: new Date('2024-08-25T23:59:59-04:00'), // 11:59:59 PM Eastern
       totalRounds: 28,
       isActive: true,
     },
@@ -34,7 +34,7 @@ async function main() {
     create: {
       year: 2025,
       draftDate: new Date('2025-09-01T18:00:00Z'),
-      keeperDeadline: new Date('2025-08-25T23:59:59Z'),
+      keeperDeadline: new Date('2025-08-25T23:59:59-04:00'), // 11:59:59 PM Eastern
       totalRounds: 28,
       isActive: false,
     },

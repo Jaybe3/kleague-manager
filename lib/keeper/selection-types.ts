@@ -8,7 +8,7 @@ export interface DeadlineInfo {
   state: DeadlineState;
   message: string;
   deadline: Date;
-  canModify: boolean;  // false if passed or already finalized
+  canModify: boolean;  // false only once the deadline has passed
 }
 
 export interface KeeperSelectionInfo {
@@ -79,4 +79,5 @@ export interface FinalizeResult {
   success: boolean;
   error?: string;
   finalizedAt?: Date;
+  conflicts?: RoundConflict[];
 }

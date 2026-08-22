@@ -10,11 +10,12 @@ import { PageHeader } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Eye } from "lucide-react";
+import { Eye, ShieldAlert } from "lucide-react";
 import {
   KeeperSelectionsResponse,
   DeadlineInfo,
 } from "@/lib/keeper/selection-types";
+import { formatDeadline } from "@/lib/keeper/deadline-tz";
 
 interface TeamOption {
   slotId: number;
@@ -66,6 +67,8 @@ function KeepersPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [finalizing, setFinalizing] = useState(false);
+  // Commissioner has explicitly opted into editing a locked team
+  const [overrideMode, setOverrideMode] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -117,13 +120,22 @@ function KeepersPageContent() {
     fetchData();
   }, [fetchData]);
 
+  // Switching teams drops out of override - it's opt-in per team
+  useEffect(() => {
+    setOverrideMode(false);
+  }, [slotIdParam]);
+
+  // Slot every mutation targets. Sending it explicitly is what lets a
+  // commissioner edit a team that isn't theirs.
+  const targetSlotId = data?.team.slotId ?? null;
+
   const handleSelectPlayer = async (playerId: string) => {
     setActionError(null);
     try {
       const res = await fetch("/api/my-team/keepers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId }),
+        body: JSON.stringify({ playerId, slotId: targetSlotId }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -138,9 +150,10 @@ function KeepersPageContent() {
   const handleRemovePlayer = async (playerId: string) => {
     setActionError(null);
     try {
-      const res = await fetch(`/api/my-team/keepers/${playerId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/my-team/keepers/${playerId}?slotId=${targetSlotId}`,
+        { method: "DELETE" }
+      );
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || "Failed to remove player");
@@ -157,7 +170,7 @@ function KeepersPageContent() {
       const res = await fetch("/api/my-team/keepers/bump", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId, newRound }),
+        body: JSON.stringify({ playerId, newRound, slotId: targetSlotId }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -172,9 +185,10 @@ function KeepersPageContent() {
   const handleResetBump = async (playerId: string) => {
     setActionError(null);
     try {
-      const res = await fetch(`/api/my-team/keepers/bump?playerId=${playerId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/my-team/keepers/bump?playerId=${playerId}&slotId=${targetSlotId}`,
+        { method: "DELETE" }
+      );
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || "Failed to reset bump");
@@ -187,7 +201,9 @@ function KeepersPageContent() {
 
   const getBumpOptions = async (playerId: string): Promise<number[]> => {
     try {
-      const res = await fetch(`/api/my-team/keepers/bump?playerId=${playerId}`);
+      const res = await fetch(
+        `/api/my-team/keepers/bump?playerId=${playerId}&slotId=${targetSlotId}`
+      );
       if (!res.ok) {
         return [];
       }
@@ -199,23 +215,21 @@ function KeepersPageContent() {
   };
 
   const handleFinalize = async () => {
-    if (!window.confirm("Are you sure you want to finalize your keeper selections? This cannot be undone.")) {
-      return;
-    }
-
     setFinalizing(true);
     setActionError(null);
     try {
       const res = await fetch("/api/my-team/keepers/finalize", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slotId: targetSlotId }),
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to finalize");
+        throw new Error(err.error || "Failed to submit keepers");
       }
       await fetchData();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to finalize");
+      setActionError(err instanceof Error ? err.message : "Failed to submit keepers");
     } finally {
       setFinalizing(false);
     }
@@ -277,9 +291,17 @@ function KeepersPageContent() {
 
   const isViewingOther = data.isViewingOther ?? false;
   const isCommissioner = data.isCommissioner ?? false;
-  const isReadOnly = isViewingOther || data.isFinalized;
-  const canSelectMore = data.deadlineInfo.canModify && !isViewingOther;
-  const canFinalize = data.selections.length > 0 && data.conflicts.length === 0 && !data.isFinalized && data.deadlineInfo.canModify && !isViewingOther;
+  // A manager edits their own team until the deadline. Submitting never locks.
+  const canEditNormally = !isViewingOther && data.deadlineInfo.canModify;
+  // A commissioner can edit through the lock - another team, or past the
+  // deadline - but only after explicitly turning override on.
+  const canOverride = isCommissioner && !canEditNormally;
+  const isEditing = canEditNormally || (canOverride && overrideMode);
+  const isReadOnly = !isEditing;
+  const canSelectMore = isEditing;
+  // Deliberately enabled when there are conflicts: clicking Submit surfaces a
+  // message naming exactly which players need resolving.
+  const canFinalize = data.selections.length > 0 && isEditing;
 
   return (
     <div className="space-y-6">
@@ -296,12 +318,24 @@ function KeepersPageContent() {
                 basePath="/my-team/keepers"
               />
             )}
-            {!data.isFinalized && !isViewingOther && (
+            {canOverride && (
+              <Button
+                variant={overrideMode ? "default" : "outline"}
+                onClick={() => setOverrideMode(!overrideMode)}
+              >
+                {overrideMode ? "Done Overriding" : "Commissioner Override"}
+              </Button>
+            )}
+            {isEditing && (
               <Button
                 onClick={handleFinalize}
                 disabled={!canFinalize || finalizing}
               >
-                {finalizing ? "Finalizing..." : "Finalize Selections"}
+                {finalizing
+                  ? "Submitting..."
+                  : data.isFinalized
+                    ? "Re-submit Keepers"
+                    : "Submit Keepers"}
               </Button>
             )}
           </div>
@@ -314,7 +348,7 @@ function KeepersPageContent() {
       {/* Action Error */}
       {actionError && (
         <div className="bg-error/10 border border-error/20 rounded-md p-4">
-          <p className="text-error/80">{actionError}</p>
+          <p className="text-error/80 whitespace-pre-line">{actionError}</p>
           <button
             onClick={() => setActionError(null)}
             className="mt-2 text-sm text-error underline hover:no-underline"
@@ -324,8 +358,19 @@ function KeepersPageContent() {
         </div>
       )}
 
+      {/* Commissioner Override Banner */}
+      {canOverride && overrideMode && (
+        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-md flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-600 font-medium">
+            Commissioner override active - you are editing {data.team.teamName}&apos;s
+            keepers past the normal lock. Submit when you&apos;re done.
+          </p>
+        </div>
+      )}
+
       {/* Viewing Other Team Banner */}
-      {isViewingOther && (
+      {isViewingOther && !overrideMode && (
         <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-md flex items-center gap-2">
           <Eye className="w-4 h-4 text-amber-600" />
           <p className="text-sm text-amber-600 font-medium">
@@ -335,7 +380,7 @@ function KeepersPageContent() {
       )}
 
       {/* Conflicts Alert */}
-      {!data.isFinalized && !isViewingOther && <ConflictAlert conflicts={data.conflicts} />}
+      {!isReadOnly && <ConflictAlert conflicts={data.conflicts} />}
 
       {/* Selected Keepers */}
       <Card>
@@ -344,10 +389,16 @@ function KeepersPageContent() {
             <h2 className="text-xl font-bold text-foreground">
               Selected Keepers ({data.selections.length})
             </h2>
-            {isViewingOther && (
+            {isViewingOther && !overrideMode && (
               <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
                 <Eye className="w-3 h-3 mr-1" />
                 Viewing
+              </Badge>
+            )}
+            {overrideMode && (
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                <ShieldAlert className="w-3 h-3 mr-1" />
+                Override
               </Badge>
             )}
           </div>
@@ -383,31 +434,31 @@ function KeepersPageContent() {
 
 // Deadline Banner Component
 function DeadlineBanner({ deadlineInfo, isFinalized }: { deadlineInfo: DeadlineInfo; isFinalized: boolean }) {
-  if (isFinalized) {
+  const deadlineDate = formatDeadline(deadlineInfo.deadline, {
+    weekday: "long",
+    month: "long",
+  });
+
+  // Submitted, but the deadline hasn't hit yet - nothing is locked
+  if (isFinalized && deadlineInfo.state !== 'passed') {
     return (
       <div className="p-3 bg-success/10 border border-success/20 rounded-md">
         <p className="text-sm text-success font-medium">
-          Your keeper selections have been finalized.
+          Keepers submitted
+        </p>
+        <p className="text-xs text-success/70 mt-1">
+          You can still change them and submit again until {deadlineDate}.
         </p>
       </div>
     );
   }
-
-  const deadlineDate = new Date(deadlineInfo.deadline).toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 
   switch (deadlineInfo.state) {
     case 'passed':
       return (
         <div className="p-3 bg-error/10 border border-error/20 rounded-md">
           <p className="text-sm text-error font-medium">
-            Deadline has passed - selections are locked
+            Deadline has passed - your keepers are locked in
           </p>
           <p className="text-xs text-error/70 mt-1">
             Deadline was: {deadlineDate}
