@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import type { ParsedDraftPick, ParsedPlayer } from "./types";
 import { getSlotIdFromTeamName, isValidTeamName, resolveTeamSlotWithAutoAlias } from "./team-mapper";
 import { getTotalRounds } from "./text-parser";
+import { easternDate } from "@/lib/keeper/deadline-tz";
 
 // ============= Player Operations =============
 
@@ -126,9 +127,9 @@ export async function findOrCreateSeason(year: number): Promise<string> {
     return existing.id;
   }
 
-  // Default dates - commissioner can update later
-  const draftDate = new Date(year, 7, 25); // August 25
-  const keeperDeadline = new Date(year, 7, 20); // August 20
+  // Default dates in league (Eastern) time - commissioner can update later
+  const draftDate = easternDate(year, 8, 25); // August 25
+  const keeperDeadline = easternDate(year, 8, 20); // August 20
 
   // Use correct totalRounds based on year
   const totalRounds = getTotalRounds(year);

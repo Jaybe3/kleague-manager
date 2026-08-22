@@ -3,6 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DeadlineState } from "@/lib/keeper/selection-types";
+import {
+  easternWallClockToUtc,
+  formatDeadline as formatLeagueDeadline,
+  utcToEasternWallClock,
+} from "@/lib/keeper/deadline-tz";
 import { PageHeader } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -48,12 +53,8 @@ export default function AdminSeasonsPage() {
 
   function startEditing(season: Season) {
     setEditingYear(season.year);
-    // Convert to datetime-local format
-    const date = new Date(season.keeperDeadline);
-    const localDatetime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-      .toISOString()
-      .slice(0, 16);
-    setEditingDeadline(localDatetime);
+    // Edit in league (Eastern) time, not the commissioner's local time
+    setEditingDeadline(utcToEasternWallClock(season.keeperDeadline));
   }
 
   function cancelEditing() {
@@ -71,7 +72,7 @@ export default function AdminSeasonsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           year,
-          keeperDeadline: new Date(editingDeadline).toISOString(),
+          keeperDeadline: easternWallClockToUtc(editingDeadline).toISOString(),
         }),
       });
 
@@ -91,14 +92,7 @@ export default function AdminSeasonsPage() {
   }
 
   function formatDeadline(deadline: string) {
-    return new Date(deadline).toLocaleDateString("en-US", {
-      weekday: "short",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return formatLeagueDeadline(deadline);
   }
 
   function getStateColor(state: DeadlineState) {
@@ -238,12 +232,17 @@ export default function AdminSeasonsPage() {
                       </td>
                       <td className="px-4 py-3">
                         {editingYear === season.year ? (
-                          <Input
-                            type="datetime-local"
-                            value={editingDeadline}
-                            onChange={(e) => setEditingDeadline(e.target.value)}
-                            className="w-auto"
-                          />
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="datetime-local"
+                              value={editingDeadline}
+                              onChange={(e) => setEditingDeadline(e.target.value)}
+                              className="w-auto"
+                            />
+                            <span className="text-xs text-muted-foreground">
+                              Eastern
+                            </span>
+                          </div>
                         ) : (
                           <span className="text-muted-foreground text-sm">
                             {formatDeadline(season.keeperDeadline)}

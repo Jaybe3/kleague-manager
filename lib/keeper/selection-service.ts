@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getPlayerKeeperCost, getPlayerKeeperCostsBatch } from "./service";
+import { formatDeadline } from "./deadline-tz";
 
 // Re-export types for convenience
 export type {
@@ -52,53 +53,47 @@ export function getDeadlineState(deadline: Date): DeadlineState {
 }
 
 /**
- * Get full deadline info including message
+ * Get full deadline info including message.
+ *
+ * Submitting does NOT lock selections - only the deadline does. A submitted
+ * team can keep changing and re-submitting right up until the deadline.
  */
-export function getDeadlineInfo(deadline: Date, isFinalized: boolean): DeadlineInfo {
+export function getDeadlineInfo(deadline: Date): DeadlineInfo {
   const state = getDeadlineState(deadline);
   const deadlineDate = new Date(deadline);
 
   let message: string;
-  let canModify: boolean;
 
-  if (isFinalized) {
-    message = 'Selections finalized';
-    canModify = false;
-  } else {
-    switch (state) {
-      case 'passed':
-        message = 'Deadline has passed - selections locked';
-        canModify = false;
-        break;
-      case 'urgent':
-        message = `Deadline in less than 24 hours! (${deadlineDate.toLocaleDateString()})`;
-        canModify = true;
-        break;
-      case 'approaching':
-        message = `Deadline approaching: ${deadlineDate.toLocaleDateString()}`;
-        canModify = true;
-        break;
-      case 'open':
-      default:
-        message = `Deadline: ${deadlineDate.toLocaleDateString()}`;
-        canModify = true;
-        break;
-    }
+  switch (state) {
+    case 'passed':
+      // Whatever is on the roster at the deadline counts, submitted or not
+      message = 'Deadline has passed - your keepers are locked in';
+      break;
+    case 'urgent':
+      message = `Deadline in less than 24 hours! (${formatDeadline(deadlineDate)})`;
+      break;
+    case 'approaching':
+      message = `Deadline approaching: ${formatDeadline(deadlineDate)}`;
+      break;
+    case 'open':
+    default:
+      message = `Deadline: ${formatDeadline(deadlineDate)}`;
+      break;
   }
 
   return {
     state,
     message,
     deadline: deadlineDate,
-    canModify,
+    canModify: state !== 'passed',
   };
 }
 
 /**
- * Check if modifications are allowed (not past deadline and not finalized)
+ * Check if modifications are allowed. Only the deadline locks selections -
+ * submitting is reversible until then.
  */
-export function canModifySelections(deadline: Date, isFinalized: boolean): boolean {
-  if (isFinalized) return false;
+export function canModifySelections(deadline: Date): boolean {
   return getDeadlineState(deadline) !== 'passed';
 }
 
@@ -267,7 +262,7 @@ async function getKeeperSelectionsForTeam(
     existingSelections.every(s => s.isFinalized);
 
   // Get deadline info
-  const deadlineInfo = getDeadlineInfo(season.keeperDeadline, isFinalized);
+  const deadlineInfo = getDeadlineInfo(season.keeperDeadline);
 
   return {
     team: {
@@ -360,6 +355,9 @@ export async function selectPlayer(
     },
   });
 
+  // Roster changed - any prior submission is stale
+  await clearSubmission(teamId, targetYear);
+
   return {
     success: true,
     selection: {
@@ -394,14 +392,13 @@ export async function removePlayer(
     return { success: false, error: "Selection not found" };
   }
 
-  if (selection.isFinalized) {
-    return { success: false, error: "Cannot remove finalized selection" };
-  }
-
   // Delete the selection
   await db.keeperSelection.delete({
     where: { id: selection.id },
   });
+
+  // Roster changed - any prior submission is stale
+  await clearSubmission(teamId, targetYear);
 
   return { success: true };
 }
@@ -425,10 +422,6 @@ export async function bumpPlayer(
 
   if (!selection) {
     return { success: false, error: "Selection not found" };
-  }
-
-  if (selection.isFinalized) {
-    return { success: false, error: "Cannot modify finalized selection" };
   }
 
   // Get team to find slotId
@@ -476,6 +469,9 @@ export async function bumpPlayer(
     data: { keeperRound: newRound },
   });
 
+  // Rounds changed - any prior submission is stale
+  await clearSubmission(teamId, targetYear);
+
   return { success: true, newRound };
 }
 
@@ -502,10 +498,6 @@ export async function resetBump(
     return { success: false, error: "Selection not found" };
   }
 
-  if (selection.isFinalized) {
-    return { success: false, error: "Cannot modify finalized selection" };
-  }
-
   // Get team to find slotId
   const team = await db.team.findUnique({
     where: { id: teamId },
@@ -528,6 +520,9 @@ export async function resetBump(
     where: { id: selection.id },
     data: { keeperRound: originalCost },
   });
+
+  // Rounds changed - any prior submission is stale
+  await clearSubmission(teamId, targetYear);
 
   return { success: true, newRound: originalCost };
 }
@@ -584,10 +579,31 @@ export async function getBumpOptions(
   return options;
 }
 
-// ============= FINALIZE =============
+// ============= SUBMIT =============
 
 /**
- * Finalize all keeper selections for a team
+ * Mark a team's selections as no longer submitted.
+ *
+ * Any edit after a submission invalidates it - the manager has to submit
+ * again. This keeps the draft board fed only by an explicit, conflict-free
+ * submission rather than a half-edited roster.
+ */
+async function clearSubmission(teamId: string, targetYear: number): Promise<void> {
+  await db.keeperSelection.updateMany({
+    where: { teamId, seasonYear: targetYear, isFinalized: true },
+    data: { isFinalized: false, finalizedAt: null },
+  });
+}
+
+/**
+ * Submit all keeper selections for a team.
+ *
+ * Submitting does NOT lock anything - a manager can change their keepers and
+ * submit again as many times as they like until the deadline. Only the
+ * deadline locks selections.
+ *
+ * Blocks the submit if two keepers occupy the same draft round, and names the
+ * players involved so the manager knows what to fix.
  */
 export async function finalizeSelections(
   teamId: string,
@@ -603,11 +619,6 @@ export async function finalizeSelections(
     return { success: false, error: "No keepers selected" };
   }
 
-  // Check if already finalized
-  if (selections.some(s => s.isFinalized)) {
-    return { success: false, error: "Selections already finalized" };
-  }
-
   // Check for conflicts
   const selectionInfos: KeeperSelectionInfo[] = selections.map(sel => ({
     id: sel.id,
@@ -620,7 +631,7 @@ export async function finalizeSelections(
     calculatedRound: sel.keeperRound,
     finalRound: sel.keeperRound,
     isBumped: false,
-    isFinalized: false,
+    isFinalized: sel.isFinalized,
   }));
 
   const conflicts = detectConflicts(selectionInfos);
@@ -628,11 +639,12 @@ export async function finalizeSelections(
   if (conflicts.length > 0) {
     return {
       success: false,
-      error: `Unresolved conflicts at round(s): ${conflicts.map(c => c.round).join(", ")}`
+      error: formatConflictError(conflicts),
+      conflicts,
     };
   }
 
-  // Finalize all selections
+  // Record the submission
   const finalizedAt = new Date();
 
   await db.keeperSelection.updateMany({
@@ -676,4 +688,26 @@ function detectConflicts(selections: KeeperSelectionInfo[]): RoundConflict[] {
   }
 
   return conflicts;
+}
+
+/**
+ * Build a plain-English message naming exactly who needs to be resolved.
+ * e.g. "Josh Allen and Bijan Robinson are both in round 4. Bump one of them
+ *       to a different round, then submit again."
+ */
+function formatConflictError(conflicts: RoundConflict[]): string {
+  const parts = conflicts.map(c => {
+    const names = c.players.map(p => p.name);
+    const list = names.length === 2
+      ? `${names[0]} and ${names[1]}`
+      : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+    const quantifier = names.length === 2 ? "both" : "all";
+    return `${list} are ${quantifier} in round ${c.round}`;
+  });
+
+  const detail = parts.length === 1
+    ? parts[0]
+    : parts.map(p => `• ${p}`).join("\n");
+
+  return `Can't submit - two keepers can't share the same draft round.\n${detail}\nBump one of them to a different round, then submit again.`;
 }
