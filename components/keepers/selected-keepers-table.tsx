@@ -35,6 +35,9 @@ interface SelectedKeepersTableProps {
   onBump: (playerId: string, newRound: number) => Promise<void>;
   onResetBump: (playerId: string) => Promise<void>;
   getBumpOptions: (playerId: string) => Promise<number[]>;
+  /** Commissioner may toggle a QB's IR exemption */
+  canSetIrExemption?: boolean;
+  onSetIrExemption?: (playerId: string, isIrExempt: boolean) => Promise<void>;
 }
 
 export function SelectedKeepersTable({
@@ -45,12 +48,24 @@ export function SelectedKeepersTable({
   onBump,
   onResetBump,
   getBumpOptions,
+  canSetIrExemption = false,
+  onSetIrExemption,
 }: SelectedKeepersTableProps) {
   const [loadingPlayerId, setLoadingPlayerId] = useState<string | null>(null);
   const [bumpOptionsPlayerId, setBumpOptionsPlayerId] = useState<string | null>(null);
   const [bumpOptions, setBumpOptions] = useState<number[]>([]);
   const [sortField, setSortField] = useState<SortField>("finalRound");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  const handleToggleIr = async (playerId: string, next: boolean) => {
+    if (!onSetIrExemption) return;
+    setLoadingPlayerId(playerId);
+    try {
+      await onSetIrExemption(playerId, next);
+    } finally {
+      setLoadingPlayerId(null);
+    }
+  };
 
   const sortedSelections = useMemo(() => {
     return [...selections].sort((a, b) => {
@@ -222,6 +237,11 @@ export function SelectedKeepersTable({
                           Finalized
                         </Badge>
                       )}
+                      {selection.isIrExempt && (
+                        <Badge variant="outline" className="border-amber-500/50 text-amber-600 bg-amber-500/10 text-xs">
+                          IR
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="py-4 text-muted-foreground">
@@ -253,6 +273,20 @@ export function SelectedKeepersTable({
                         >
                           {showBumpOptions ? "Cancel" : "Bump"}
                         </Button>
+                        {canSetIrExemption && selection.player.position.toUpperCase() === "QB" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleToggleIr(selection.player.id, !selection.isIrExempt)}
+                            disabled={isLoading}
+                            className="h-9 md:h-7 px-2 text-xs border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                            title={selection.isIrExempt
+                              ? "Count this QB against the 3-QB limit again"
+                              : "Exempt this QB from the 3-QB limit (injured reserve)"}
+                          >
+                            {selection.isIrExempt ? "Clear IR" : "Mark IR"}
+                          </Button>
+                        )}
                         {selection.isBumped && (
                           <Button
                             variant="outline"
@@ -365,9 +399,11 @@ export function SelectedKeepersTable({
                   <>
                     <CheckCircle2 className="h-4 w-4 shrink-0" />
                     <span>
-                      {selection.isFinalized
-                        ? "Selected · Finalized"
-                        : "Selected · Standard keeper"}
+                      {selection.isIrExempt
+                        ? "Selected · IR — doesn't count toward 3 QB limit"
+                        : selection.isFinalized
+                          ? "Selected · Finalized"
+                          : "Selected · Standard keeper"}
                     </span>
                   </>
                 )}
@@ -386,6 +422,16 @@ export function SelectedKeepersTable({
                     >
                       {showBumpOptions ? "CANCEL" : "BUMP"}
                     </button>
+                    {canSetIrExemption && selection.player.position.toUpperCase() === "QB" && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleIr(selection.player.id, !selection.isIrExempt)}
+                        disabled={isLoading}
+                        className="rounded-md bg-amber-500/10 px-3 py-1 text-[11px] font-bold text-amber-600 active:scale-95 disabled:opacity-50"
+                      >
+                        {selection.isIrExempt ? "CLEAR IR" : "MARK IR"}
+                      </button>
+                    )}
                     {selection.isBumped && (
                       <button
                         type="button"

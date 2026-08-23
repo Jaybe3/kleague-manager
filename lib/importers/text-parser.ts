@@ -30,6 +30,14 @@ export function stripEmojis(str: string): string {
 }
 
 /**
+ * Strip a leading marker asterisk from a name. CBS prefixes some names with
+ * one, and it would otherwise be stored as part of the name ("*Drake").
+ */
+export function stripNameMarker(str: string): string {
+  return str.replace(/^\*+\s*/, '').trim()
+}
+
+/**
  * Parse player string from CBS format
  * Example: "Patrick Mahomes QB • KC" or "Jonathan Owens DB • CHI - Signed for $0"
  * Also handles keeper suffix: "Patrick Mahomes QB • KC (Keeper)"
@@ -42,6 +50,9 @@ export function parsePlayerString(playerStr: string): ParsedPlayer | null {
 
   // Remove "(Keeper)" suffix if present
   cleanedStr = cleanedStr.replace(/\s*\(Keeper\)\s*$/i, '').trim()
+
+  // Strip a leading marker asterisk ("*Drake Maye")
+  cleanedStr = stripNameMarker(cleanedStr)
 
   // Match pattern: "FirstName LastName POSITION • TEAM"
   // Position is typically 1-3 uppercase letters

@@ -9,6 +9,7 @@ import type {
   ParsedTransaction,
   ParsedKeeperSlot,
 } from "./types";
+import { stripNameMarker } from "./text-parser";
 
 // ============= Sheet Names =============
 
@@ -161,8 +162,8 @@ export function parseDraftRow(row: DraftSheetRow, seasonYear: number): ParsedDra
 
   const player: ParsedPlayer = {
     playerMatchKey: row.PlayerMatch,
-    firstName: row.First?.trim() || "",
-    lastName: row.Last?.trim() || "",
+    firstName: stripNameMarker(row.First ?? ""),
+    lastName: stripNameMarker(row.Last ?? ""),
     position: normalizePosition(row.Position),
   };
 
@@ -203,8 +204,8 @@ export function parseTransactionRow(
 
   const player: ParsedPlayer = {
     playerMatchKey: row.PlayerMatch,
-    firstName: row.First?.trim() || "",
-    lastName: row.Last?.trim() || "",
+    firstName: stripNameMarker(row.First ?? ""),
+    lastName: stripNameMarker(row.Last ?? ""),
     position: normalizePosition(row.Position),
   };
 

@@ -150,6 +150,10 @@ model KeeperSelection {
   originalAcquisitionId String    @map("original_acquisition_id")
   isFinalized           Boolean   @default(false) @map("is_finalized")
   finalizedAt           DateTime? @map("finalized_at")
+  // Commissioner-granted IR exemption: this QB is still a normal keeper but
+  // does not count against the 3-QB limit.
+  isIrExempt            Boolean   @default(false) @map("is_ir_exempt")
+  irExemptAt            DateTime? @map("ir_exempt_at")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 

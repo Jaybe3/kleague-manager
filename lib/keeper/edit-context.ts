@@ -17,6 +17,8 @@ export interface KeeperEditContext {
   slotId: number;
   /** True when a commissioner is editing past the deadline or on someone else's behalf */
   isOverride: boolean;
+  /** True when the caller holds commissioner rights */
+  isCommissioner: boolean;
 }
 
 export type KeeperEditContextResult =
@@ -112,6 +114,7 @@ export async function resolveKeeperEditContext(
       targetYear,
       slotId,
       isOverride: !deadlineOpen || editingOtherTeam,
+      isCommissioner,
     },
   };
 }
