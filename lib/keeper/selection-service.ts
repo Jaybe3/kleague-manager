@@ -1,6 +1,13 @@
 import { db } from "@/lib/db";
 import { getPlayerKeeperCost, getPlayerKeeperCostsBatch } from "./service";
 import { formatDeadline } from "./deadline-tz";
+import {
+  getQbLimitStatus,
+  isQb,
+  qbLimitReachedError,
+  qbLimitSubmitError,
+  type QbCountable,
+} from "./qb-limit";
 
 // Re-export types for convenience
 export type {
@@ -251,6 +258,7 @@ async function getKeeperSelectionsForTeam(
       finalRound: sel.keeperRound,
       isBumped: sel.keeperRound < calculatedRound,
       isFinalized: sel.isFinalized,
+      isIrExempt: sel.isIrExempt,
     });
   }
 
@@ -281,7 +289,22 @@ async function getKeeperSelectionsForTeam(
     conflicts,
     isFinalized,
     deadlineInfo,
+    qbStatus: getQbLimitStatus(toQbCountable(selections)),
   };
+}
+
+/** Adapt selection info to the shape the QB-limit rules read. */
+function toQbCountable(
+  selections: Array<{
+    player: { firstName: string; lastName: string; position: string };
+    isIrExempt?: boolean;
+  }>
+): QbCountable[] {
+  return selections.map((s) => ({
+    position: s.player.position,
+    playerName: `${s.player.firstName} ${s.player.lastName}`,
+    isIrExempt: s.isIrExempt ?? false,
+  }));
 }
 
 // ============= SELECT PLAYER =============
@@ -322,6 +345,32 @@ export async function selectPlayer(
 
   if (!keeperResult.calculation.isEligible) {
     return { success: false, error: "Player is not eligible to be kept" };
+  }
+
+  // Three-QB limit. IR-exempt QBs already on the roster don't count.
+  const player = await db.player.findUnique({
+    where: { id: playerId },
+    select: { position: true },
+  });
+
+  if (player && isQb(player.position)) {
+    const held = await db.keeperSelection.findMany({
+      where: { teamId, seasonYear: targetYear },
+      select: {
+        isIrExempt: true,
+        player: { select: { firstName: true, lastName: true, position: true } },
+      },
+    });
+
+    const countable: QbCountable[] = held.map((h) => ({
+      position: h.player.position,
+      playerName: `${h.player.firstName} ${h.player.lastName}`,
+      isIrExempt: h.isIrExempt,
+    }));
+
+    if (getQbLimitStatus(countable).atLimit) {
+      return { success: false, error: qbLimitReachedError(countable) };
+    }
   }
 
   // Find the original acquisition for this player on this team
@@ -602,8 +651,9 @@ async function clearSubmission(teamId: string, targetYear: number): Promise<void
  * submit again as many times as they like until the deadline. Only the
  * deadline locks selections.
  *
- * Blocks the submit if two keepers occupy the same draft round, and names the
- * players involved so the manager knows what to fix.
+ * Blocks the submit if two keepers occupy the same draft round, or if the team
+ * is over the three-QB limit, and names the players involved so the manager
+ * knows what to fix.
  */
 export async function finalizeSelections(
   teamId: string,
@@ -632,7 +682,18 @@ export async function finalizeSelections(
     finalRound: sel.keeperRound,
     isBumped: false,
     isFinalized: sel.isFinalized,
+    isIrExempt: sel.isIrExempt,
   }));
+
+  // Three-QB limit. Re-checked here because a commissioner can lift an IR
+  // exemption after the fact, which puts an already-valid roster over.
+  const qbStatus = getQbLimitStatus(toQbCountable(selectionInfos));
+  if (qbStatus.overLimit) {
+    return {
+      success: false,
+      error: qbLimitSubmitError(toQbCountable(selectionInfos)),
+    };
+  }
 
   const conflicts = detectConflicts(selectionInfos);
 
@@ -710,4 +771,78 @@ function formatConflictError(conflicts: RoundConflict[]): string {
     : parts.map(p => `• ${p}`).join("\n");
 
   return `Can't submit - two keepers can't share the same draft round.\n${detail}\nBump one of them to a different round, then submit again.`;
+}
+
+// ============= IR EXEMPTION =============
+
+export interface SetIrExemptionResult {
+  success: boolean;
+  error?: string;
+  isIrExempt?: boolean;
+  /** Warning shown when lifting an exemption leaves the team over the limit */
+  warning?: string;
+}
+
+/**
+ * Grant or lift a QB's IR exemption. Commissioner-only - callers authorize.
+ *
+ * An exempt QB is a normal keeper in every respect except one: he doesn't
+ * count against the three-QB limit. Lifting an exemption that pushes a team
+ * over the limit is allowed - the commissioner may be part-way through a
+ * correction - but the team can't submit until it's resolved, so we say so.
+ */
+export async function setIrExemption(
+  teamId: string,
+  playerId: string,
+  targetYear: number,
+  isIrExempt: boolean
+): Promise<SetIrExemptionResult> {
+  const selection = await db.keeperSelection.findFirst({
+    where: { teamId, playerId, seasonYear: targetYear },
+    include: { player: { select: { position: true } } },
+  });
+
+  if (!selection) {
+    return { success: false, error: "Selection not found" };
+  }
+
+  if (!isQb(selection.player.position)) {
+    return {
+      success: false,
+      error: "IR exemptions only apply to quarterbacks",
+    };
+  }
+
+  await db.keeperSelection.update({
+    where: { id: selection.id },
+    data: {
+      isIrExempt,
+      irExemptAt: isIrExempt ? new Date() : null,
+    },
+  });
+
+  // Changing who counts can invalidate a prior submission
+  await clearSubmission(teamId, targetYear);
+
+  const after = await db.keeperSelection.findMany({
+    where: { teamId, seasonYear: targetYear },
+    select: {
+      isIrExempt: true,
+      player: { select: { firstName: true, lastName: true, position: true } },
+    },
+  });
+
+  const countable: QbCountable[] = after.map((s) => ({
+    position: s.player.position,
+    playerName: `${s.player.firstName} ${s.player.lastName}`,
+    isIrExempt: s.isIrExempt,
+  }));
+
+  const status = getQbLimitStatus(countable);
+
+  return {
+    success: true,
+    isIrExempt,
+    warning: status.overLimit ? qbLimitSubmitError(countable) : undefined,
+  };
 }

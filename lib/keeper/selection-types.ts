@@ -1,3 +1,5 @@
+import type { QbLimitStatus } from "./qb-limit";
+
 // Types for keeper selection - shared between client and server
 
 // ============= DEADLINE TYPES =============
@@ -23,6 +25,8 @@ export interface KeeperSelectionInfo {
   finalRound: number;       // After any bump (may equal calculatedRound)
   isBumped: boolean;
   isFinalized: boolean;
+  /** QB held under a commissioner IR exemption - doesn't count toward the 3-QB limit */
+  isIrExempt?: boolean;
 }
 
 export interface EligiblePlayer {
@@ -58,6 +62,8 @@ export interface KeeperSelectionsResponse {
   conflicts: RoundConflict[];
   isFinalized: boolean;
   deadlineInfo: DeadlineInfo;
+  /** Where the team stands against the three-QB limit */
+  qbStatus: QbLimitStatus;
   // Commissioner viewing fields (optional - only present in API response)
   isViewingOther?: boolean;
   isCommissioner?: boolean;

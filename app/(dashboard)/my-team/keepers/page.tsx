@@ -199,6 +199,30 @@ function KeepersPageContent() {
     }
   };
 
+  const handleSetIrExemption = async (playerId: string, isIrExempt: boolean) => {
+    setActionError(null);
+    try {
+      const res = await fetch("/api/my-team/keepers/ir-exempt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId, isIrExempt, slotId: targetSlotId }),
+      });
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload.error || "Failed to update IR exemption");
+      }
+      // Lifting an exemption can leave the team over the limit - say so
+      if (payload.warning) {
+        setActionError(payload.warning);
+      }
+      await fetchData();
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Failed to update IR exemption"
+      );
+    }
+  };
+
   const getBumpOptions = async (playerId: string): Promise<number[]> => {
     try {
       const res = await fetch(
@@ -386,9 +410,31 @@ function KeepersPageContent() {
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-xl font-bold text-foreground">
-              Selected Keepers ({data.selections.length})
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold text-foreground">
+                Selected Keepers ({data.selections.length})
+              </h2>
+              {data.qbStatus && (
+                <Badge
+                  variant="outline"
+                  className={
+                    data.qbStatus.overLimit
+                      ? "bg-error/10 text-error border-error/30"
+                      : data.qbStatus.atLimit
+                        ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                        : "bg-muted/50 text-muted-foreground"
+                  }
+                  title={
+                    data.qbStatus.exempt > 0
+                      ? `${data.qbStatus.exempt} QB on IR, not counted`
+                      : undefined
+                  }
+                >
+                  QB {data.qbStatus.counted}/{data.qbStatus.limit}
+                  {data.qbStatus.exempt > 0 && ` (+${data.qbStatus.exempt} IR)`}
+                </Badge>
+              )}
+            </div>
             {isViewingOther && !overrideMode && (
               <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
                 <Eye className="w-3 h-3 mr-1" />
@@ -403,6 +449,8 @@ function KeepersPageContent() {
             )}
           </div>
           <SelectedKeepersTable
+            canSetIrExemption={isCommissioner && isEditing}
+            onSetIrExemption={handleSetIrExemption}
             selections={data.selections}
             totalRounds={data.season.totalRounds}
             isFinalized={isReadOnly}
