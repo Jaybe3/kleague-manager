@@ -4,6 +4,7 @@ import { isRuleActive } from "@/lib/rules/rules-service";
 import { getAllTeamNamesForSeason } from "@/lib/slots";
 import type { KeeperCalculationInput, KeeperCalculationResult, PlayerKeeperInfo, KeeperRuleFlags } from "./types";
 import { DEFAULT_RULE_FLAGS, RULE_CODE_TO_FLAG } from "./types";
+import { resolveTradeBase, type ChainAcquisition } from "./chain";
 
 /**
  * Result of getting a player's keeper info with calculated cost
@@ -167,15 +168,19 @@ async function findKeeperBaseAcquisition(
     // But first check special cases for FA and TRADE
 
     if (currentAcquisition.acquisitionType === "TRADE") {
-      // TRADE preserves history - find original DRAFT across all teams
+      // TRADE preserves the clock the player was already on - follow the trade
+      // back to the acquisition it closed and resolve the chain there.
       // Only if TRADE_INHERITS_COST rule is enabled (TASK-603)
       if (ruleFlags.tradeInheritsCost) {
-        const originalDraft = await findOriginalDraftForTrade(playerId);
-        if (originalDraft) {
-          return originalDraft;
+        const tradeBase = await findKeeperBaseThroughTrade(
+          playerId,
+          currentAcquisition
+        );
+        if (tradeBase) {
+          return tradeBase;
         }
       }
-      // No draft found or rule disabled - treat as FA
+      // Trail couldn't be followed or rule disabled - treat as FA
       return currentAcquisition;
     }
 
@@ -247,28 +252,70 @@ async function findKeeperBaseAcquisition(
 }
 
 /**
- * Find the original DRAFT acquisition for a traded player.
- * Trades preserve keeper history - look for the earliest DRAFT across all teams.
+ * Resolve the keeper base for a player currently held via a trade.
+ *
+ * A trade carries the clock the player was already on, so we follow the trade
+ * back to the acquisition it closed - through further trades if he changed
+ * hands more than once - and then resolve the chain on the team that drafted
+ * him. This deliberately does NOT reach for his oldest draft on record: that
+ * would cross seasons where he was released and re-drafted, and cross other
+ * managers' teams, inflating his cost or making him ineligible outright.
+ *
+ * Returns null when the trail can't be followed, leaving the caller to treat
+ * the trade as a fresh acquisition.
  *
  * @param playerId - The player's ID
+ * @param tradeAcquisition - The active TRADE acquisition to trace back from
  */
-async function findOriginalDraftForTrade(playerId: string) {
-  // For trades, find the EARLIEST DRAFT acquisition across ALL teams
-  // This is the original draft that started the keeper clock
-  const originalDraft = await db.playerAcquisition.findFirst({
-    where: {
-      playerId,
-      acquisitionType: "DRAFT",
-    },
-    orderBy: {
-      seasonYear: "asc",
-    },
-    include: {
-      player: true,
-    },
+async function findKeeperBaseThroughTrade(
+  playerId: string,
+  tradeAcquisition: AcquisitionWithIncludes
+) {
+  // Full history across every team - a trade can point at any slot
+  const history = await db.playerAcquisition.findMany({
+    where: { playerId },
+    include: { player: true, team: true },
+    orderBy: { seasonYear: "asc" },
   });
 
-  return originalDraft;
+  const slotByTeamId = await loadSlotByTeamId(history);
+  const rows = toChainRows(history, slotByTeamId);
+
+  const tradeRow = rows.find(
+    (r) =>
+      r.acq.acquisitionType === tradeAcquisition.acquisitionType &&
+      r.acq.seasonYear === tradeAcquisition.seasonYear &&
+      r.acq.draftRound === tradeAcquisition.draftRound &&
+      r.slotId === (tradeAcquisition.slotId ?? tradeAcquisition.team.slotId) &&
+      r.droppedDate == null
+  );
+
+  if (!tradeRow) return null;
+
+  const base = resolveTradeBase(rows, tradeRow);
+  if (!base) return null;
+
+  // The trail can end at a free-agent pickup - that's where the clock
+  // restarted. The same inheritance rule applies as for any FA: if someone
+  // drafted him that season, the pickup carries that round.
+  if (base.acq.acquisitionType === "FA") {
+    const ruleActive = await isRuleActive(
+      "FA_INHERITS_DRAFT_ROUND",
+      base.acq.seasonYear
+    );
+    if (ruleActive) {
+      const sameSeasonDraft = rows.find(
+        (r) =>
+          r.acq.acquisitionType === "DRAFT" &&
+          r.acq.seasonYear === base.acq.seasonYear
+      );
+      if (sameSeasonDraft) {
+        return sameSeasonDraft.acq;
+      }
+    }
+  }
+
+  return base.acq;
 }
 
 /**
@@ -444,13 +491,14 @@ export async function getPlayerKeeperCostsBatch(
     }
   }
 
-  // 5. Batch fetch cross-slot original drafts for TRADEs
-  let crossSlotTradeDrafts: typeof activeAcquisitions = [];
+  // 5. Batch fetch the FULL cross-slot history for traded players.
+  // Resolving a trade means following it back to the acquisition it closed,
+  // which can sit on any slot - so drafts alone aren't enough.
+  let crossSlotTradeHistory: typeof activeAcquisitions = [];
   if (tradedPlayerIds.length > 0) {
-    crossSlotTradeDrafts = await db.playerAcquisition.findMany({
+    crossSlotTradeHistory = await db.playerAcquisition.findMany({
       where: {
         playerId: { in: tradedPlayerIds },
-        acquisitionType: "DRAFT",
       },
       include: {
         player: true,
@@ -514,12 +562,13 @@ export async function getPlayerKeeperCostsBatch(
     historyByPlayer.set(acq.playerId, list);
   }
 
-  // Cross-slot trade drafts: earliest draft per player
-  const tradeDraftByPlayer = new Map<string, typeof activeAcquisitions[0]>();
-  for (const draft of crossSlotTradeDrafts) {
-    if (!tradeDraftByPlayer.has(draft.playerId)) {
-      tradeDraftByPlayer.set(draft.playerId, draft);
-    }
+  // Cross-slot chain rows per traded player, for tracing a trade backward
+  const slotByTeamId = await loadSlotByTeamId(crossSlotTradeHistory);
+  const tradeHistoryByPlayer = new Map<string, ChainRow[]>();
+  for (const row of toChainRows(crossSlotTradeHistory, slotByTeamId)) {
+    const list = tradeHistoryByPlayer.get(row.acq.playerId) || [];
+    list.push(row);
+    tradeHistoryByPlayer.set(row.acq.playerId, list);
   }
 
   // Cross-slot FA same-season drafts by playerId
@@ -546,7 +595,7 @@ export async function getPlayerKeeperCostsBatch(
       playerId,
       currentAcquisition,
       historyByPlayer.get(playerId) || [],
-      tradeDraftByPlayer,
+      tradeHistoryByPlayer,
       faSameSeasonDraftByPlayer,
       ruleFlags
     );
@@ -634,9 +683,54 @@ type AcquisitionWithIncludes = {
   seasonYear: number;
   draftRound: number | null;
   draftPick: number | null;
+  slotId?: number | null;
+  acquisitionDate?: Date;
+  droppedDate?: Date | null;
+  tradedFromTeamId?: string | null;
   player: { id: string; firstName: string; lastName: string; position: string; playerMatchKey: string };
   team: { slotId: number };
 };
+
+/** An acquisition paired with the fields chain resolution reads. */
+type ChainRow = ChainAcquisition & { acq: AcquisitionWithIncludes };
+
+/**
+ * Pair each acquisition with its chain fields, resolving the team a trade came
+ * from down to its slot so a franchise is followed across renames.
+ */
+function toChainRows(
+  rows: AcquisitionWithIncludes[],
+  slotByTeamId: Map<string, number>
+): ChainRow[] {
+  return rows.map((r) => ({
+    acq: r,
+    seasonYear: r.seasonYear,
+    slotId: r.slotId ?? r.team.slotId,
+    acquisitionType: r.acquisitionType,
+    acquisitionDate: r.acquisitionDate ?? new Date(0),
+    droppedDate: r.droppedDate ?? null,
+    tradedFromSlotId: r.tradedFromTeamId
+      ? slotByTeamId.get(r.tradedFromTeamId) ?? null
+      : null,
+  }));
+}
+
+/** Map the team ids a set of trades point back to onto their slots. */
+async function loadSlotByTeamId(
+  rows: { tradedFromTeamId?: string | null }[]
+): Promise<Map<string, number>> {
+  const teamIds = [
+    ...new Set(
+      rows.map((r) => r.tradedFromTeamId).filter((id): id is string => !!id)
+    ),
+  ];
+  if (teamIds.length === 0) return new Map();
+  const teams = await db.team.findMany({
+    where: { id: { in: teamIds } },
+    select: { id: true, slotId: true },
+  });
+  return new Map(teams.map((t) => [t.id, t.slotId]));
+}
 
 /**
  * Pure function to find keeper base acquisition from pre-fetched data.
@@ -646,7 +740,7 @@ function findKeeperBaseFromData(
   playerId: string,
   currentAcquisition: AcquisitionWithIncludes,
   allSlotAcquisitions: AcquisitionWithIncludes[],
-  tradeDraftByPlayer: Map<string, AcquisitionWithIncludes>,
+  tradeHistoryByPlayer: Map<string, ChainRow[]>,
   faSameSeasonDraftByPlayer: Map<string, AcquisitionWithIncludes>,
   ruleFlags: KeeperRuleFlags
 ): AcquisitionWithIncludes | null {
@@ -663,9 +757,34 @@ function findKeeperBaseFromData(
     // TRADE case
     if (currentAcquisition.acquisitionType === "TRADE") {
       if (ruleFlags.tradeInheritsCost) {
-        const originalDraft = tradeDraftByPlayer.get(playerId);
-        if (originalDraft) {
-          return originalDraft;
+        const rows = tradeHistoryByPlayer.get(playerId) || [];
+        const tradeRow = rows.find(
+          (r) =>
+            r.acq.acquisitionType === "TRADE" &&
+            r.acq.seasonYear === currentAcquisition.seasonYear &&
+            r.slotId ===
+              (currentAcquisition.slotId ?? currentAcquisition.team.slotId) &&
+            r.droppedDate == null
+        );
+        const base = tradeRow ? resolveTradeBase(rows, tradeRow) : null;
+        if (base) {
+          // Trail ended at a free-agent pickup - apply the same same-season
+          // draft inheritance an FA acquisition would get.
+          if (
+            base.acq.acquisitionType === "FA" &&
+            base.acq.seasonYear >= 2025 &&
+            ruleFlags.faInheritsDraftRound
+          ) {
+            const sameSeasonDraft = rows.find(
+              (r) =>
+                r.acq.acquisitionType === "DRAFT" &&
+                r.acq.seasonYear === base.acq.seasonYear
+            );
+            if (sameSeasonDraft) {
+              return sameSeasonDraft.acq;
+            }
+          }
+          return base.acq;
         }
       }
       return currentAcquisition;
