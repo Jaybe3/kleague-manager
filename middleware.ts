@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
-const publicRoutes = ["/", "/login", "/register"];
+const publicRoutes = ["/login", "/register"];
 const authRoutes = ["/login", "/register"];
 
 export default auth((req) => {
@@ -10,6 +10,14 @@ export default auth((req) => {
   const isPublicRoute = publicRoutes.includes(nextUrl.pathname);
   const isAuthRoute = authRoutes.includes(nextUrl.pathname);
   const isAdminRoute = nextUrl.pathname.startsWith("/admin");
+
+  // The root has nothing of its own to show - send people where they were
+  // going anyway. Handled here rather than in a page so nothing renders first.
+  if (nextUrl.pathname === "/") {
+    return NextResponse.redirect(
+      new URL(isLoggedIn ? "/my-team" : "/login", nextUrl)
+    );
+  }
 
   // If user is logged in and tries to access auth routes, redirect to dashboard
   if (isLoggedIn && isAuthRoute) {
