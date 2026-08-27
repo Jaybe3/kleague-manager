@@ -5,6 +5,7 @@ import { getAllTeamNamesForSeason } from "@/lib/slots";
 import type { KeeperCalculationInput, KeeperCalculationResult, PlayerKeeperInfo, KeeperRuleFlags } from "./types";
 import { DEFAULT_RULE_FLAGS, RULE_CODE_TO_FLAG } from "./types";
 import { resolveTradeBase, type ChainAcquisition } from "./chain";
+import { resolveKeeperStatus, type KeeperStatus } from "./keeper-status";
 
 /**
  * Result of getting a player's keeper info with calculated cost
@@ -948,9 +949,15 @@ export interface AllPlayersRow {
   ownerTeamName: string;
   acquisitionType: "DRAFT" | "FA";
   yearsKept: number;
+  /** What it would cost to keep him - null if he can't be kept. */
   keeperRound: number | null;
   isEligible: boolean;
   isOverride: boolean;
+  /** Kept, passed over, or still waiting on the owner. */
+  keeperStatus: KeeperStatus;
+  /** The round he's actually kept at, which a bump can make earlier. */
+  keptRound: number | null;
+  isBumped: boolean;
 }
 
 /**
@@ -962,12 +969,20 @@ export interface AllPlayersRow {
  * batched calculator, so trade/FA inheritance, rule flags, and commissioner
  * overrides are all honored.
  *
+ * Each row also carries whether the player actually got kept. Which selections
+ * count depends on `deadlinePassed` - see `resolveKeeperStatus`.
+ *
  * @param rosterYear - The season whose rosters to list (targetYear - 1)
  * @param targetYear - The keeper year to compute eligibility for
+ * @param deadlinePassed - Whether the target year's keeper deadline has passed.
+ *   Open: only submitted selections are league-visible, and a team that hasn't
+ *   submitted reads as pending. Passed: every selection counts and nothing is
+ *   pending.
  */
 export async function getAllPlayersWithKeeperStatus(
   rosterYear: number,
-  targetYear: number
+  targetYear: number,
+  deadlinePassed = false
 ): Promise<AllPlayersRow[]> {
   const teams = await db.team.findMany({
     where: { seasonYear: rosterYear },
@@ -975,6 +990,40 @@ export async function getAllPlayersWithKeeperStatus(
   });
 
   const teamNames = await getAllTeamNamesForSeason(rosterYear);
+
+  // Keeper selections for the whole league in one query. Before the deadline
+  // only submitted ones are visible, so nobody's half-edited roster leaks.
+  const selections = await db.keeperSelection.findMany({
+    where: {
+      seasonYear: targetYear,
+      ...(deadlinePassed ? {} : { isFinalized: true }),
+    },
+    select: {
+      teamId: true,
+      playerId: true,
+      keeperRound: true,
+      isFinalized: true,
+    },
+  });
+
+  const selectionsByTeam = new Map<string, Map<string, { keeperRound: number }>>();
+  // A team counts as submitted once any of its selections is finalized, which
+  // is how finalizeSelections records a submission.
+  const submittedTeamIds = new Set<string>();
+
+  for (const sel of selections) {
+    let byPlayer = selectionsByTeam.get(sel.teamId);
+    if (!byPlayer) {
+      byPlayer = new Map();
+      selectionsByTeam.set(sel.teamId, byPlayer);
+    }
+    byPlayer.set(sel.playerId, { keeperRound: sel.keeperRound });
+
+    if (sel.isFinalized) {
+      submittedTeamIds.add(sel.teamId);
+    }
+  }
+
   const rows: AllPlayersRow[] = [];
 
   for (const team of teams) {
@@ -996,11 +1045,18 @@ export async function getAllPlayersWithKeeperStatus(
     const playerIds = Array.from(playerMap.keys());
     const costs = await getPlayerKeeperCostsBatch(playerIds, team.slotId, targetYear);
     const ownerTeamName = teamNames.get(team.slotId) ?? `Slot ${team.slotId}`;
+    const teamSelections = selectionsByTeam.get(team.id);
+    const teamHasSubmitted = submittedTeamIds.has(team.id);
 
     for (const [playerId, acq] of playerMap) {
       const result = costs.get(playerId);
+      const selection = teamSelections?.get(playerId) ?? null;
 
       if (result) {
+        const isEligible = result.calculation.isEligible;
+        const keeperRound = isEligible ? result.calculation.keeperRound : null;
+        const keptRound = selection?.keeperRound ?? null;
+
         rows.push({
           playerId,
           firstName: result.player.firstName,
@@ -1010,11 +1066,20 @@ export async function getAllPlayersWithKeeperStatus(
           ownerTeamName,
           acquisitionType: result.acquisition.type,
           yearsKept: result.calculation.yearsKept,
-          keeperRound: result.calculation.isEligible
-            ? result.calculation.keeperRound
-            : null,
-          isEligible: result.calculation.isEligible,
+          keeperRound,
+          isEligible,
           isOverride: result.calculation.isOverride ?? false,
+          keeperStatus: resolveKeeperStatus({
+            selection,
+            isEligible,
+            teamHasSubmitted,
+            deadlinePassed,
+          }),
+          keptRound,
+          isBumped:
+            keptRound !== null &&
+            keeperRound !== null &&
+            keptRound < keeperRound,
         });
       } else {
         // Couldn't resolve a keeper base (e.g. no valid acquisition chain).
@@ -1031,6 +1096,14 @@ export async function getAllPlayersWithKeeperStatus(
           keeperRound: null,
           isEligible: false,
           isOverride: false,
+          keeperStatus: resolveKeeperStatus({
+            selection,
+            isEligible: false,
+            teamHasSubmitted,
+            deadlinePassed,
+          }),
+          keptRound: selection?.keeperRound ?? null,
+          isBumped: false,
         });
       }
     }

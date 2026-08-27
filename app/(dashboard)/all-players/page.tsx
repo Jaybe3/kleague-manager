@@ -14,6 +14,10 @@ import {
 } from "@/components/ui/select";
 import { ArrowUp, ArrowDown, Search } from "lucide-react";
 import { MobileSort } from "@/components/players/mobile-sort";
+import {
+  KEEPER_STATUS_RANK,
+  type KeeperStatus,
+} from "@/lib/keeper/keeper-status";
 
 interface PlayerRow {
   playerId: string;
@@ -27,11 +31,15 @@ interface PlayerRow {
   keeperRound: number | null;
   isEligible: boolean;
   isOverride: boolean;
+  keeperStatus: KeeperStatus;
+  keptRound: number | null;
+  isBumped: boolean;
 }
 
 interface AllPlayersResponse {
   targetYear: number;
   rosterYear: number;
+  deadlinePassed: boolean;
   players: PlayerRow[];
   owners: { slotId: number; teamName: string }[];
   positions: string[];
@@ -40,6 +48,75 @@ interface AllPlayersResponse {
 
 type SortKey = "name" | "position" | "owner" | "acquisition" | "yearsKept" | "keeperRound" | "status";
 type SortDir = "asc" | "desc";
+
+/** Filter values for the merged status dropdown. */
+type StatusFilter =
+  | "all"
+  | "kept"
+  | "not-kept"
+  | "pending"
+  | "eligible"
+  | "ineligible";
+
+const STATUS_FILTERS: { value: StatusFilter; label: string; short: string }[] = [
+  { value: "all", label: "All players", short: "All" },
+  { value: "kept", label: "Kept", short: "Kept" },
+  { value: "not-kept", label: "Not kept", short: "Not kept" },
+  { value: "pending", label: "Pending", short: "Pending" },
+  { value: "eligible", label: "Eligible (any status)", short: "Eligible" },
+  { value: "ineligible", label: "Ineligible", short: "Ineligible" },
+];
+
+/** Left-edge accent on the mobile cards, so status reads before the text does. */
+const STATUS_ACCENT: Record<KeeperStatus, string> = {
+  KEPT: "border-l-primary",
+  PENDING: "border-l-warning",
+  NOT_KEPT: "border-l-muted",
+  INELIGIBLE: "border-l-muted opacity-75",
+};
+
+/**
+ * The one badge that says where a player landed: kept (at which round),
+ * passed over, still waiting on his owner, or never keepable.
+ *
+ * `showRound` is off on the mobile cards, where the round already has its own
+ * tag next to the player's name.
+ */
+function KeeperStatusBadge({
+  player,
+  showRound = true,
+}: {
+  player: PlayerRow;
+  showRound?: boolean;
+}) {
+  switch (player.keeperStatus) {
+    case "KEPT":
+      return (
+        <Badge variant="default">
+          Kept
+          {showRound && player.keptRound !== null ? ` · R${player.keptRound}` : ""}
+        </Badge>
+      );
+    case "PENDING":
+      return (
+        <Badge
+          variant="outline"
+          className="border-transparent bg-warning/15 text-warning"
+        >
+          Pending
+        </Badge>
+      );
+    case "NOT_KEPT":
+      return (
+        <Badge variant="outline" className="text-muted-foreground">
+          Not kept
+        </Badge>
+      );
+    case "INELIGIBLE":
+    default:
+      return <Badge variant="secondary">Ineligible</Badge>;
+  }
+}
 
 export default function AllPlayersPage() {
   const [data, setData] = useState<AllPlayersResponse | null>(null);
@@ -51,7 +128,7 @@ export default function AllPlayersPage() {
   const [search, setSearch] = useState("");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [positionFilter, setPositionFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   // Sort
   const [sortKey, setSortKey] = useState<SortKey>("keeperRound");
@@ -117,10 +194,18 @@ export default function AllPlayersPage() {
     if (positionFilter !== "all") {
       rows = rows.filter((p) => p.position === positionFilter);
     }
-    if (statusFilter === "eligible") {
+    if (statusFilter === "kept") {
+      rows = rows.filter((p) => p.keeperStatus === "KEPT");
+    } else if (statusFilter === "not-kept") {
+      rows = rows.filter((p) => p.keeperStatus === "NOT_KEPT");
+    } else if (statusFilter === "pending") {
+      rows = rows.filter((p) => p.keeperStatus === "PENDING");
+    } else if (statusFilter === "eligible") {
+      // Cuts across the status axis: everyone who could be kept, whether or
+      // not his owner has decided yet.
       rows = rows.filter((p) => p.isEligible);
     } else if (statusFilter === "ineligible") {
-      rows = rows.filter((p) => !p.isEligible);
+      rows = rows.filter((p) => p.keeperStatus === "INELIGIBLE");
     }
 
     const dir = sortDir === "asc" ? 1 : -1;
@@ -145,8 +230,13 @@ export default function AllPlayersPage() {
           if (br === null) return -1;
           return dir * (ar - br);
         }
-        case "status":
-          return dir * (Number(b.isEligible) - Number(a.isEligible));
+        case "status": {
+          const rank =
+            KEEPER_STATUS_RANK[a.keeperStatus] -
+            KEEPER_STATUS_RANK[b.keeperStatus];
+          if (rank !== 0) return dir * rank;
+          return a.lastName.localeCompare(b.lastName);
+        }
         default:
           return 0;
       }
@@ -154,6 +244,18 @@ export default function AllPlayersPage() {
 
     return sorted;
   }, [data, search, ownerFilter, positionFilter, statusFilter, sortKey, sortDir]);
+
+  // Headline numbers for whatever is currently in view.
+  const summary = useMemo(() => {
+    const kept = filteredPlayers.filter((p) => p.keeperStatus === "KEPT").length;
+    const pendingTeams = new Set(
+      filteredPlayers
+        .filter((p) => p.keeperStatus === "PENDING")
+        .map((p) => p.slotId)
+    ).size;
+
+    return { kept, pendingTeams };
+  }, [filteredPlayers]);
 
   const SortHeader = ({ label, sortKey: key, className = "" }: { label: string; sortKey: SortKey; className?: string }) => (
     <th className={`px-3 py-2 text-left text-xs font-semibold text-foreground ${className}`}>
@@ -241,14 +343,19 @@ export default function AllPlayersPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="Keeper status" />
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All players</SelectItem>
-                <SelectItem value="eligible">Eligible to keep</SelectItem>
-                <SelectItem value="ineligible">Ineligible to keep</SelectItem>
+                {STATUS_FILTERS.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>
+                    {f.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -265,21 +372,17 @@ export default function AllPlayersPage() {
               />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {([
-                ["all", "All"],
-                ["eligible", "Eligible"],
-                ["ineligible", "Ineligible"],
-              ] as const).map(([value, label]) => (
+              {STATUS_FILTERS.map((f) => (
                 <button
-                  key={value}
-                  onClick={() => setStatusFilter(value)}
+                  key={f.value}
+                  onClick={() => setStatusFilter(f.value)}
                   className={`flex-shrink-0 h-9 px-4 rounded-full text-sm font-semibold transition-colors ${
-                    statusFilter === value
+                    statusFilter === f.value
                       ? "bg-primary-container text-on-primary-container"
                       : "bg-muted text-muted-foreground"
                   }`}
                 >
-                  {label}
+                  {f.short}
                 </button>
               ))}
             </div>
@@ -332,6 +435,19 @@ export default function AllPlayersPage() {
             <>
               <div className="text-sm text-muted-foreground mb-3">
                 {filteredPlayers.length} player{filteredPlayers.length === 1 ? "" : "s"}
+                {summary.kept > 0 && (
+                  <>
+                    <span className="mx-1.5 opacity-40">•</span>
+                    {summary.kept} kept
+                  </>
+                )}
+                {summary.pendingTeams > 0 && (
+                  <>
+                    <span className="mx-1.5 opacity-40">•</span>
+                    {summary.pendingTeams} team
+                    {summary.pendingTeams === 1 ? "" : "s"} pending
+                  </>
+                )}
               </div>
               <div className="hidden md:block overflow-x-auto rounded-md border border-border">
                 <table className="w-full min-w-[720px]">
@@ -342,7 +458,7 @@ export default function AllPlayersPage() {
                       <SortHeader label="Owner" sortKey="owner" />
                       <SortHeader label="Acq" sortKey="acquisition" />
                       <SortHeader label="Yrs Kept" sortKey="yearsKept" />
-                      <SortHeader label="Keeper Round" sortKey="keeperRound" />
+                      <SortHeader label="Keeper Cost" sortKey="keeperRound" />
                       <SortHeader label="Status" sortKey="status" />
                     </tr>
                   </thead>
@@ -371,10 +487,11 @@ export default function AllPlayersPage() {
                           )}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
-                          {p.isEligible ? (
-                            <Badge variant="default">Eligible</Badge>
-                          ) : (
-                            <Badge variant="secondary">Ineligible</Badge>
+                          <KeeperStatusBadge player={p} />
+                          {p.isBumped && (
+                            <span className="block text-xs text-muted-foreground mt-0.5">
+                              bumped from R{p.keeperRound}
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -390,7 +507,7 @@ export default function AllPlayersPage() {
                 onFieldChange={(v) => setSortKey(v as SortKey)}
                 onToggleDirection={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
                 options={[
-                  { value: "keeperRound", label: "Keeper round" },
+                  { value: "keeperRound", label: "Keeper cost" },
                   { value: "name", label: "Name" },
                   { value: "position", label: "Position" },
                   { value: "owner", label: "Owner" },
@@ -403,7 +520,7 @@ export default function AllPlayersPage() {
                   <div
                     key={`${p.slotId}-${p.playerId}`}
                     className={`rounded-lg border border-border border-l-4 bg-card p-3 shadow-[0_4px_20px_-5px_rgba(16,185,129,0.08)] ${
-                      p.isEligible ? "border-l-success" : "border-l-muted opacity-75"
+                      STATUS_ACCENT[p.keeperStatus]
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2 mb-1">
@@ -415,8 +532,13 @@ export default function AllPlayersPage() {
                           {p.firstName} {p.lastName}
                         </h3>
                       </div>
-                      {p.keeperRound !== null ? (
+                      {/* The round that matters: what he's kept at, or what he'd cost. */}
+                      {p.keptRound !== null ? (
                         <span className="shrink-0 rounded bg-primary-container px-2 py-0.5 font-mono text-sm text-on-primary-container tabular-nums">
+                          R{p.keptRound}
+                        </span>
+                      ) : p.keeperRound !== null ? (
+                        <span className="shrink-0 rounded bg-muted px-2 py-0.5 font-mono text-sm text-muted-foreground tabular-nums">
                           R{p.keeperRound}
                         </span>
                       ) : (
@@ -425,19 +547,15 @@ export default function AllPlayersPage() {
                         </span>
                       )}
                     </div>
-                    <div className="mb-2 text-[13px]">
-                      {p.isEligible ? (
-                        <span className="text-success">
-                          Eligible
-                          {p.isOverride && (
-                            <>
-                              <span className="text-muted-foreground"> · </span>
-                              <span className="italic text-primary">override</span>
-                            </>
-                          )}
+                    <div className="mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]">
+                      <KeeperStatusBadge player={p} showRound={false} />
+                      {p.isBumped && (
+                        <span className="text-muted-foreground">
+                          bumped from R{p.keeperRound}
                         </span>
-                      ) : (
-                        <span className="text-muted-foreground">Ineligible</span>
+                      )}
+                      {p.isOverride && (
+                        <span className="italic text-primary">override</span>
                       )}
                     </div>
                     <div className="text-[12px] uppercase tracking-wider text-muted-foreground">
