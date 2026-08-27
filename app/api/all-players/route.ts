@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getAllPlayersWithKeeperStatus } from "@/lib/keeper";
+import { getDeadlineState } from "@/lib/keeper/selection-service";
 
 // GET - League-wide list of every player on every roster, with keeper
 // eligibility resolved for the target (keeper) year. Visible to any signed-in user.
@@ -47,8 +48,22 @@ export async function GET(request: NextRequest) {
       targetYear = activeSeason?.year ?? currentYear;
     }
 
+    // The deadline decides which keeper selections are league-visible. An
+    // unconfigured (future) season is never treated as locked.
+    const targetSeason = await db.season.findUnique({
+      where: { year: targetYear },
+      select: { keeperDeadline: true },
+    });
+    const deadlinePassed = targetSeason
+      ? getDeadlineState(targetSeason.keeperDeadline) === "passed"
+      : false;
+
     const rosterYear = targetYear - 1;
-    const players = await getAllPlayersWithKeeperStatus(rosterYear, targetYear);
+    const players = await getAllPlayersWithKeeperStatus(
+      rosterYear,
+      targetYear,
+      deadlinePassed
+    );
 
     // Distinct owners and positions for filter dropdowns
     const owners = Array.from(
@@ -62,6 +77,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       targetYear,
       rosterYear,
+      deadlinePassed,
       players,
       owners,
       positions,

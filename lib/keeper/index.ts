@@ -25,6 +25,10 @@ export {
   YEARS_AT_BASE_COST,
 } from "./types";
 
+// Keeper status (kept / not kept / pending), shared with the client
+export { resolveKeeperStatus, KEEPER_STATUS_RANK } from "./keeper-status";
+export type { KeeperStatus, KeeperStatusInput } from "./keeper-status";
+
 // Database integration
 export { getTeamEligibleKeepers } from "./db";
 
